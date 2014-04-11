@@ -1,18 +1,20 @@
 var io = {}
 
-io.worker = new Worker('./ndn-io-worker.js');
+io.worker = new Worker('./lib/ndn-io-worker.js');
 
 io.outstandingFetches = [];
 io.outstandingMakes = []
-
+io.executeTangleCallback;
 io.executeHashNameCallback;
 
-io.localTangle = function(port){
-  io.worker.postMessage({transport: "local"}, [port]);
+io.localTangle = function(port, cb){
+  io.worker.postMessage({command: "tangle", transport: "local"}, [port]);
+  io.executeTangleCallback = cb
 }
 
-io.remoteTangle = function(opts){
-  io.worker.postMessage({transport: "ws", host: opts.host, port: opts.port})
+io.remoteTangle = function(opts, cb){
+  io.worker.postMessage({command: "tangle", transport: "websocket", host: opts.host, port: opts.port})
+  io.executeTangleCallback = cb
 }
 
 io.importPKI = function(cert, priPem, pubPem) {
@@ -67,10 +69,12 @@ io.worker.onmessage = function (e) {
     io.executeEncodedDataCallback(e.data)
   } else if (e.data.responseTo == "getHashName") {
     io.executeHashNameCallback(e.data.hashName)
+  } else if (e.data.responseTo == "tangle") {
+    io.executeTangleCallback()
   }
 }
 
-io.executeEncodedDataCallback(data) {
+io.executeEncodedDataCallback = function(data) {
   for (var i = 0; i < io.outstandingMakes.length; i++) {
     if (io.outstandingMakes[i].id == data.id){
       io.outstandingMakes[i].callback(data.encoded)
