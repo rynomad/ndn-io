@@ -1,0 +1,36 @@
+{
+  "name": "ndn-io",
+  "version": "0.0.0",
+  "description": "NDN I/O module fore node.js and the browser",
+  "main": "node.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "http://github.com/rynomad/ndn-io"
+  },
+  "keywords": [
+    "NDN"
+  ],
+  "author": "Ryan Bennett",
+  "license": "GPL",
+  "bugs": {
+    "url": "https://github.com/rynomad/ndn-io/issues"
+  },
+  "browser": "browser.js",
+  "browserify":{
+    "transform": "workerify"
+  },
+  "dependencies": {
+    "workerify": "~0.2.3",
+    "ndn-messageChannelTransport": "*"
+  },
+  "devDependencies": {
+    "grunt": "~0.4.4",
+    "grunt-contrib-connect": "~0.7.1",
+    "grunt-saucelabs": "~5.1.1",
+    "browserify": "~3.41.0",
+    "grunt-browserify": "~2.0.5"
+  }
+}
