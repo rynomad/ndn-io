@@ -7,8 +7,12 @@ io.outstandingMakes = []
 
 io.executeHashNameCallback;
 
-io.tangle = function(port, cert, priPem, pubPem){
-  io.worker.postMessage({port: "daemonPort"}, port);
+io.localTangle = function(port){
+  io.worker.postMessage({transport: "local"}, [port]);
+}
+
+io.remoteTangle = function(opts){
+  io.worker.postMessage({transport: "ws", host: opts.host, port: opts.port})
 }
 
 io.importPKI = function(cert, priPem, pubPem) {
