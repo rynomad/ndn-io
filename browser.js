@@ -34,6 +34,7 @@ io.fetch = function(req, whenGotten, whenNotGotten) {
     "version": req.version,
     "selectors": req.selectors
   });
+  console.log(req.uri)
   io.outstandingFetches.push({uri: req.uri, whenGotten: whenGotten, whenNotGotten: whenNotGotten});
 }
 
