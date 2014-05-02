@@ -1,2 +1,1 @@
-var transport = require("ndn-streamTransport")
-  , io = require("./lib/ndn-io.js")
+module.exports = require("./lib/ndn-io.js")
