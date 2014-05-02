@@ -1,6 +1,9 @@
 var io = {}
+  , telehashTransport = require('ndn-telehashTransport')
 
-io.worker = new Worker('./lib/ndn-io-worker.js');
+
+io.worker = new Worker("./lib/ndn-io-worker.js");
+
 
 io.outstandingFetches = [];
 io.outstandingMakes = []
@@ -15,6 +18,30 @@ io.localTangle = function(port, cb){
 io.remoteTangle = function(opts, cb){
   io.worker.postMessage({command: "tangle", transport: "websocket", host: opts.host, port: opts.port})
   io.executeTangleCallback = cb
+}
+
+io.telehashTangle = function(opts, cb){
+  var ms = new MessageChannel()
+  telehashTransport.start('wiki', function(hn, dos){
+    console.log(hn, dos)
+    hn.start(opts.hashname, "ndn", {js: 'incoming'}, function(err, packet, chan, cb){
+      cb(true)
+      if (packet.js == 'ndn'){
+        ms.port1.postMessage(packet.body)
+      } else {
+
+        console.log("got chan to server", chan.hashname, packet.body)
+        ms.port1.onmessage = function(e){
+          console.log(e)
+          chan.send({js: "ndn", body: e.data})
+        }
+
+      }
+
+    })
+
+    io.localTangle(ms.port2, cb)
+  })
 }
 
 io.importPKI = function(cert, priPem, pubPem) {

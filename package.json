@@ -19,12 +19,13 @@
     "url": "https://github.com/rynomad/ndn-io/issues"
   },
   "browser": "browser.js",
-  "browserify":{
+  "browserify": {
     "transform": "workerify"
   },
   "dependencies": {
     "workerify": "~0.2.3",
-    "ndn-messageChannelTransport": "*"
+    "ndn-messageChannelTransport": "*",
+    "ndn-telehashTransport": "*"
   },
   "devDependencies": {
     "grunt": "~0.4.4",
