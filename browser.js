@@ -27,13 +27,18 @@ io.telehashTangle = function(opts, cb){
     hn.start(opts.hashname, "ndn", {js: 'incoming'}, function(err, packet, chan, cb){
       cb(true)
       if (packet.js == 'ndn'){
-        ms.port1.postMessage(packet.body)
+        console.log("packet type == ndn ", packet.body, typeof packet.body)
+        var data = packet.body.toArrayBuffer()
+        console.log(data)
+        var buf = new Buffer(packet.body)
+        console.log(buf)
+        ms.port1.postMessage(buf.buffer)
       } else {
 
         console.log("got chan to server", chan.hashname, packet.body)
         ms.port1.onmessage = function(e){
           console.log(e)
-          chan.send({js: "ndn", body: e.data})
+          chan.send({js: "ndn", body: new Buffer(e.data)})
         }
 
       }
