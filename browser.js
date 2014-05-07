@@ -16,7 +16,8 @@ io.localTangle = function(port, cb){
 }
 
 io.remoteTangle = function(opts, cb){
-  io.worker.postMessage({command: "tangle", transport: "websocket", host: opts.host, port: opts.port})
+  console.log("remote tangle host: ", opts.host, " port: ", opts.port)
+  io.worker.postMessage({command: "tangle", transport: "websocket", host: opts.host || location.host.split(":")[0], port: opts.port || 6565})
   io.executeTangleCallback = cb
 }
 
