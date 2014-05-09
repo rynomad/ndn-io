@@ -27,10 +27,10 @@ describe('Setup', function(){
   describe('should tangle', function(){
     it('with websocket', function(done) {
       function cb (){done()}
-      io.remoteTangle({host: "rosewiki.org", port:9696}, cb)
+      io.remoteTangle({host: "localhost", port:6565}, cb)
 
     })
-    
+
     it('with messageChannel', function(done){
       this.timeout(10000)
       function cb (){ done()}
