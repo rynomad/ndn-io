@@ -1,5 +1,5 @@
 var io = {}
-  , telehashTransport = require('ndn-telehashTransport')
+  , telehashTransport = require('ndn-telehash-transport')
 
 
 io.worker = new Worker("./lib/ndn-io-worker.js");
