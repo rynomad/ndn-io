@@ -25,7 +25,8 @@
   "dependencies": {
     "workerify": "~0.2.3",
     "ndn-message-channel-transport": "*",
-    "ndn-telehash-transport": "*"
+    "ndn-telehash-transport": "*",
+    "ndn-lib": "git+https://github.com/rynomad/ndn-js.git"
   },
   "devDependencies": {
     "grunt": "~0.4.4",
