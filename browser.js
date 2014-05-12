@@ -9,6 +9,7 @@ io.outstandingFetches = [];
 io.outstandingMakes = []
 io.executeTangleCallback;
 io.executeHashNameCallback;
+io.outstandingPublish = {}
 
 io.localTangle = function(port, cb){
   io.worker.postMessage({command: "tangle", transport: "local"}, [port]);
@@ -71,7 +72,7 @@ io.fetch = function(req, whenGotten, whenNotGotten) {
   io.outstandingFetches.push({uri: req.uri, whenGotten: whenGotten, whenNotGotten: whenNotGotten});
 }
 
-io.publish = function(opts){
+io.publish = function(opts, cb){
   console.log('sending publish command')
   io.worker.postMessage({
     "command": "publish",
@@ -80,6 +81,7 @@ io.publish = function(opts){
     "thing": opts.thing,
     "version": opts.version
   })
+  io.outstandingPublish[opts.uri] = cb
 }
 
 io.mirror = function(uri){
@@ -106,6 +108,11 @@ io.worker.onmessage = function (e) {
   } else if (e.data.responseTo == "tangle") {
     io.executeTangleCallback()
   }
+}
+
+io.executePublishCallback = function(data){
+
+  io.outstandingPublish[data.uri](data.success)
 }
 
 io.executeEncodedDataCallback = function(data) {
