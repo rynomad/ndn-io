@@ -135,7 +135,7 @@ io.executeFetchCallback = function(response) {
   }
   console.log(mtch)
   if (response.success == true){
-    mtch.whenGotten(mtch.uri, response.thing, response.firstCo);
+    mtch.whenGotten(mtch.uri, response.thing, response.uriActual);
   } else {
     mtch.whenNotGotten(mtch.uri);
   }
