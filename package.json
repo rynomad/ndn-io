@@ -1,6 +1,6 @@
 {
   "name": "ndn-io",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "description": "NDN I/O module fore node.js and the browser",
   "main": "node.js",
   "scripts": {
@@ -27,6 +27,7 @@
     "ndn-message-channel-transport": "*",
     "ndn-telehash-transport": "*",
     "ndn-lib": "git+https://github.com/rynomad/ndn-js.git"
+    "ndn-utils": "*",
   },
   "devDependencies": {
     "grunt": "~0.4.4",
