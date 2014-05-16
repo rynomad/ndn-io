@@ -1,6 +1,6 @@
 {
   "name": "ndn-io",
-  "version": "0.0.13",
+  "version": "0.0.14",
   "description": "NDN I/O module fore node.js and the browser",
   "main": "node.js",
   "scripts": {
