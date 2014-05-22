@@ -125,19 +125,22 @@ io.executeEncodedDataCallback = function(data) {
 }
 
 io.executeFetchCallback = function(response) {
-  var mtch;
+  var mtchs = [];
   console.log(response, io.outstandingFetches)
   for (var i = io.outstandingFetches.length - 1; i >= 0; i--){
     if (io.outstandingFetches[i].uri == response.uri) {
       console.log('matched outstanding fetch')
-      mtch = io.outstandingFetches.splice(i,1)[0]
+      mtchs.push(io.outstandingFetches.splice(i,1)[0])
     }
   }
-  console.log(mtch)
-  if (response.success == true){
-    mtch.whenGotten(mtch.uri, response.thing, response.uriActual);
-  } else {
-    mtch.whenNotGotten(mtch.uri);
+  console.log(mtchs)
+  for (var j = 0 ; j < mtchs.length; j++){
+    if (response.success == true){
+      mtchs[j].whenGotten(mtchs[j].uri, response.thing, response.uriActual);
+    } else {
+      mtchs[j].whenNotGotten(mtchs[j].uri);
+    }
+
   }
 
 }
