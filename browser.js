@@ -127,7 +127,7 @@ io.executeEncodedDataCallback = function(data) {
 io.executeFetchCallback = function(response) {
   var mtch;
   console.log(response, io.outstandingFetches)
-  for (var i = 0; i < io.outstandingFetches.length; i++){
+  for (var i = io.outstandingFetches.length - 1; i >= 0; i--){
     if (io.outstandingFetches[i].uri == response.uri) {
       console.log('matched outstanding fetch')
       mtch = io.outstandingFetches.splice(i,1)[0]
