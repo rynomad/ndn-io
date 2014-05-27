@@ -7,6 +7,7 @@ io.worker = new Worker("./lib/ndn-io-worker.js");
 
 io.outstandingFetches = [];
 io.outstandingMakes = []
+io.outstandingMakeFaces = {}
 io.executeTangleCallback;
 io.executeHashNameCallback;
 io.outstandingPublish = {}
@@ -20,6 +21,12 @@ io.remoteTangle = function(opts, cb){
   console.log("remote tangle host: ", opts.host, " port: ", opts.port)
   io.worker.postMessage({command: "tangle", transport: "websocket", host: opts.host || location.host.split(":")[0], port: opts.port || 6565})
   io.executeTangleCallback = cb
+}
+
+io.makeFace = function(opts, cb){
+  io.outstandingMakeFaces[opts.hashname || opts.host] = cb
+  io.worker.postMessage({command: "makeFace", opts: opts})
+
 }
 
 io.telehashTangle = function(opts, cb){
@@ -107,9 +114,14 @@ io.worker.onmessage = function (e) {
     io.executeHashNameCallback(e.data.hashName)
   } else if (e.data.responseTo == "tangle") {
     io.executeTangleCallback()
+  } else if (e.data.responseTo == "makeFace") {
+    io.executeMakeFaceCallback(e.data)
   }
 }
 
+io.executeMakeFaceCallback = function(data){
+  io.outstandingMakeFaces[data.opts.hashname || data.opts.host](data.opts, data.success)
+}
 io.executePublishCallback = function(data){
 
   io.outstandingPublish[data.uri](data.success)
