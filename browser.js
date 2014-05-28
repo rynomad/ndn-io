@@ -7,6 +7,7 @@ io.worker = new Worker("./lib/ndn-io-worker.js");
 
 io.outstandingFetches = [];
 io.outstandingMakes = []
+io.outstandingNextHops = []
 io.outstandingMakeFaces = {}
 io.executeTangleCallback;
 io.executeHashNameCallback;
@@ -27,6 +28,11 @@ io.makeFace = function(opts, cb){
   io.outstandingMakeFaces[opts.hashname || opts.host] = cb
   io.worker.postMessage({command: "makeFace", opts: opts})
 
+}
+
+io.addNextHop = function(opts, cb){
+  io.outstandingNextHops.push({uri: opts.uri, faceID: opts.faceID, callback: cb})
+  io.worker.postMessage({command: "addNextHop", opts: opts})
 }
 
 io.telehashTangle = function(opts, cb){
@@ -116,12 +122,26 @@ io.worker.onmessage = function (e) {
     io.executeTangleCallback()
   } else if (e.data.responseTo == "makeFace") {
     io.executeMakeFaceCallback(e.data)
+  } else if (e.data.responseTo == "addNextHop") {
+    io.executeNextHopCallback(e.data)
   }
+}
+
+io.executeNextHopCallback = function(data){
+  var mtch
+  for (var i = io.outstandingNextHops.length - 1; i >= 0; i--){
+    if ((io.outstandingNextHops[i].uri == data.uri) && (io.outstandingNextHops[i].faceID == data.faceID)) {
+      console.log('matched outstanding nextHop')
+      mtch = io.outstandingNextHops.splice(i,1)[0]
+    }
+  }
+  mtch.callback(data.success)
 }
 
 io.executeMakeFaceCallback = function(data){
   io.outstandingMakeFaces[data.opts.hashname || data.opts.host](data.opts, data.success)
 }
+
 io.executePublishCallback = function(data){
 
   io.outstandingPublish[data.uri](data.success)
