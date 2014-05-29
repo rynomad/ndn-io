@@ -1,7 +1,6 @@
 var io = {}
   , telehashTransport = require('ndn-telehash-transport')
 
-
 io.worker = new Worker("./lib/ndn-io-worker.js");
 
 
@@ -12,6 +11,7 @@ io.outstandingMakeFaces = {}
 io.executeTangleCallback;
 io.executeHashNameCallback;
 io.outstandingPublish = {}
+io.activeListeners = {}
 
 io.localTangle = function(port, cb){
   io.worker.postMessage({command: "tangle", transport: "local"}, [port]);
@@ -33,6 +33,12 @@ io.makeFace = function(opts, cb){
 io.addNextHop = function(opts, cb){
   io.outstandingNextHops.push({uri: opts.uri, faceID: opts.faceID, callback: cb})
   io.worker.postMessage({command: "addNextHop", opts: opts})
+}
+
+io.addListener = function(opts, cb){
+  io.activeListeners[opts.uri] = cb
+  io.worker.postMessage({command: "listen", opts: opts})
+
 }
 
 io.telehashTangle = function(opts, cb){
@@ -66,6 +72,10 @@ io.telehashTangle = function(opts, cb){
 
 io.importPKI = function(cert, priPem, pubPem) {
   io.worker.postMessage({cert: cert, priPem: priPem, pubPem: pubPem})
+}
+
+io.ping = function(opts){
+  io.worker.postMessage({command: "ping", opts: opts})
 }
 
 io.getHashName = function(callback){
@@ -124,7 +134,14 @@ io.worker.onmessage = function (e) {
     io.executeMakeFaceCallback(e.data)
   } else if (e.data.responseTo == "addNextHop") {
     io.executeNextHopCallback(e.data)
+  } else if (e.data.responseTo == "listen") {
+    io.executeListenCallback(e.data)
   }
+
+}
+
+io.executeListenCallback = function(data) {
+  io.activeListeners[data.opts.uri](data.opts, data.interest)
 }
 
 io.executeNextHopCallback = function(data){
