@@ -170,7 +170,6 @@ io.executeEncodedDataCallback = function(data) {
       io.outstandingMakes[i].callback(data.encoded)
     }
   }
-
 }
 
 io.executeFetchCallback = function(response) {
