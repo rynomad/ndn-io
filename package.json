@@ -1,6 +1,6 @@
 {
   "name": "ndn-io",
-  "version": "0.0.28",
+  "version": "0.0.29",
   "description": "NDN I/O module fore node.js and the browser",
   "main": "node.js",
   "scripts": {
@@ -13,8 +13,8 @@
   "keywords": [
     "NDN"
   ],
-  "author": "Ryan Bennett",
-  "license": "GPL",
+  "author": "Ryan Bennett, Colorado State University",
+  "license": "LGPL",
   "bugs": {
     "url": "https://github.com/rynomad/ndn-io/issues"
   },
