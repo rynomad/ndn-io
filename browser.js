@@ -1,7 +1,7 @@
 var io = {}
   , telehashTransport = require('ndn-telehash-transport')
 
-io.worker = new Worker("./lib/ndn-io-worker.js");
+//io.worker = new Worker("./lib/ndn-io-worker.js");
 
 
 io.outstandingFetches = [];

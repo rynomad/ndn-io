@@ -2,7 +2,7 @@
   "name": "ndn-io",
   "version": "0.0.29",
   "description": "NDN I/O module fore node.js and the browser",
-  "main": "node.js",
+  "main": "./src/ndn-io.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -18,7 +18,7 @@
   "bugs": {
     "url": "https://github.com/rynomad/ndn-io/issues"
   },
-  "browser": "browser.js",
+  "browser": "./src/ndn-io.js",
   "browserify": {
     "transform": "workerify"
   },
@@ -26,7 +26,7 @@
     "workerify": "~0.2.3",
     "ndn-message-channel-transport": "*",
     "ndn-telehash-transport": "*",
-    "ndn-lib": "git+https://github.com/rynomad/ndn-js.git",
+    "ndn-js": "*",
     "ndn-utils": "*"
   },
   "devDependencies": {
@@ -34,6 +34,7 @@
     "grunt-contrib-connect": "~0.7.1",
     "grunt-saucelabs": "~5.1.1",
     "browserify": "~3.41.0",
-    "grunt-browserify": "~2.0.5"
+    "grunt-browserify": "~2.0.5",
+    "grunt-jsdoc": "^0.5.6"
   }
 }

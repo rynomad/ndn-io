@@ -15,9 +15,17 @@ module.exports = function(grunt){
         files: {
           "mocha/browser/testLib.js": ["mocha/browser/browser-spec.js"]
         },
- 	options: {
-	  'transform': ["workerify"] 
-	}
+        options: {
+          'transform': ["workerify"]
+        }
+      }
+    },
+    jsdoc : {
+      dist : {
+        src: ['src/**/*.js', "src/*.js"],
+        options: {
+          destination: 'doc'
+        }
       }
     },
     connect: {
@@ -25,19 +33,19 @@ module.exports = function(grunt){
       }
     },
     'saucelabs-mocha': {
-            all: {
-                options: {
-                    urls: ["http://127.0.0.1:8000/mocha/browser/test.html"],
-		    username: "rynomadCSU",
-		    key: "c954c8b8-41ce-45b1-bba2-3b8806d5e2cf",
-                    tunnelTimeout: 5,
-                    concurrency: 3,
-                    browsers: browsers,
-                    testname: "ndn-io",
-                    tags: ["master"]
-                }
-            }
-        },
+      all: {
+        options: {
+          urls: ["http://127.0.0.1:8000/mocha/browser/test.html"],
+          username: "rynomadCSU",
+          key: "c954c8b8-41ce-45b1-bba2-3b8806d5e2cf",
+          tunnelTimeout: 5,
+          concurrency: 3,
+          browsers: browsers,
+          testname: "ndn-io",
+          tags: ["master"]
+        }
+      }
+    },
     mochaSelenium: {
       options: {
         // Mocha options
@@ -59,7 +67,9 @@ module.exports = function(grunt){
     }
   })
 
-  grunt.loadNpmTasks('grunt-browserify') 
+  grunt.loadNpmTasks('grunt-jsdoc');
+
+  grunt.loadNpmTasks('grunt-browserify')
   grunt.loadNpmTasks('grunt-saucelabs')
   grunt.loadNpmTasks('grunt-contrib-connect')
   grunt.registerTask('tester', ['connect', 'saucelabs-mocha'])
