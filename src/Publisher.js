@@ -8,7 +8,6 @@ if (!File){
 
 function Publisher (io, name, toPublish, freshnessPeriod){
   this.contentStore = io.contentStore;
-
   this.toPublish = toPublish;
   this.name = new ndn.Name(name);
   this.freshnessPeriod = freshnessPeriod || 60 * 60 * 1000;
