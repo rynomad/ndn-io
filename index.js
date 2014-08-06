@@ -1,1 +1,1 @@
-module.exports = require("./src/ndn-io.js");
+module.exports = require("./src/IO.js");

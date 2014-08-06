@@ -1,19 +1,10 @@
 module.exports = function(grunt){
-    var browsers = [{
-        browserName: "chrome",
-        version: "33",
-        platform: "XP"
-    }, {
-        browserName: "chrome",
-        version: "33",
-        platform: "Linux"
-    }];
 
   grunt.initConfig({
     browserify: {
       test: {
         files: {
-          "mocha/browser/testLib.js": ["mocha/browser/browser-spec.js"]
+          "test/browser/test.js": ["test/browser/browser-spec.js"]
         },
         options: {
           'transform': ["workerify"]
@@ -27,6 +18,15 @@ module.exports = function(grunt){
           destination: 'doc'
         }
       }
+    },
+    jshint: {
+      options: {
+        curly: true,
+        eqeqeq: true,
+        laxcomma: true,
+        laxbreak: true
+      },
+      All: ["src/*.js", "src/**/*.js"]
     },
     connect: {
       server: {
@@ -68,6 +68,7 @@ module.exports = function(grunt){
   })
 
   grunt.loadNpmTasks('grunt-jsdoc');
+  grunt.loadNpmTasks('grunt-contrib-jshint');
 
   grunt.loadNpmTasks('grunt-browserify')
   grunt.loadNpmTasks('grunt-saucelabs')

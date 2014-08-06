@@ -1,8 +1,8 @@
 var ndn;
 
 if (!File){
-  function File(){};
-  function Blob(){};
+  var File = function File(){}
+    , Blob = function Blob(){};
 }
 
 
@@ -19,7 +19,7 @@ Publisher.installNDN = function(NDN){
 
 Publisher.setFreshnessPeriod = function(milliseconds){
   this.freshnessPeriod = milliseconds;
-}
+};
 
 Publisher.prototype.publish = function(callback){
   if ((toPublish instanceof File || Blob || Buffer) || ((typeof toPublish === "string") && (toPublish.indexOf("file://") === 0))){
@@ -65,11 +65,11 @@ Publisher.prototype.publishString = function(string, name, callback){
   while (string.length > 0){
     chunks.push(string.substr(0,8000));
     string = string.substr(8000, string.length);
-  };
+  }
 
   var length = chunks.length;
   for (var i = 0; i < length; i++){
-    var n = new ndn.Name(name)
+    var n = new ndn.Name(name);
     var d = new ndn.Data(n.appendSegment(i), new ndn.SignedInfo(), chunks.shift());
     d.signedInfo.setFreshnessPeriod(this.freshnessPeriod);
     d.signedInfo.setFinalBlockID(new ndn.Name.Component(ndn.DataUtils.nonNegativeIntToBigEndian(length - 1)));
@@ -80,4 +80,4 @@ Publisher.prototype.publishString = function(string, name, callback){
   callback(datas);
 };
 
-module.exports = Publisher
+module.exports = Publisher;

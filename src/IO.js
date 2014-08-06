@@ -471,10 +471,13 @@ function IO (transportClass, connectionParameters, contentStore){
   return this;
 }
 
+/** Install the ndn library into the module
+ *@param {Object} NDN the ndn-lib object
+ */
 IO.installNDN = function(NDN){
   NameTree.installNDN(NDN);
   ndn = NDN;
-}
+};
 
 /** Publish a file, json object or string
  *@param {Buffer|Blob|File|FilePath|JSON|String} toPublish the thing you want to publish
@@ -493,9 +496,9 @@ IO.prototype.handleInterest = function(element, faceID){
   interest.wireDecode(element);
   this.contentStore.check(interest, function(result){
     if (result){
-      this.interfaces.dispatch(result, 1)
+      this.interfaces.dispatch(result, 1);
     }
-  })
+  });
 };
 
 /**handler for incoming data
@@ -507,7 +510,7 @@ IO.prototype.handleData = function(element, faceID){
   data.wireDecode(element);
   var results = this.PIT.lookup(data);
   for (var i = 0; i < results.pitEntries.length; i++){
-    results.pitEntries[i].callback(element, data, data.signedInfo.finalBlockID)
+    results.pitEntries[i].callback(element, data, data.signedInfo.finalBlockID);
   }
 };
 
@@ -536,7 +539,7 @@ IO.prototype.fetchAllSegments = function(firstSegmentInterest, onEachData, onTim
         var packet = interest.wireEncode().buffer;
         Self.PIT.insertPitEntry(packet, interest, callback);
         Self.interfaces.dispatch(packet, 1);
-      } else if ((timeoutTriggered == false)) {
+      } else if ((timeoutTriggered === false)) {
         timeoutTriggered = true;
         onTimeout(firstSegmentInterest);
       }
@@ -552,35 +555,36 @@ IO.prototype.fetchAllSegments = function(firstSegmentInterest, onEachData, onTim
       //console.log("finalSegmentNumber", finalSegmentNumber);
 
       if (interestsInFlight < windowSize) {
+        var p;
         for (var i = 0; i < finalSegmentNumber; i++) {
-          if (segmentRequested[i] == undefined) {
+          if (segmentRequested[i] === undefined) {
 
             var newInterest = new ndn.Interest(masterInterest);
 
             newInterest.name.appendSegment(i);
-            var packet = newInterest.wireEncode()
+            p = newInterest.wireEncode();
             segmentRequested[i] = 0;
-            Self.PIT.insertPitEntry(packet, newInterest, callback)
-            Self.interfaces.dispatch(packet, 1);
+            Self.PIT.insertPitEntry(p, newInterest, callback);
+            Self.interfaces.dispatch(p, 1);
 
 
             interestsInFlight++;
-            if (interestsInFlight == windowSize) {
+            if (interestsInFlight === windowSize) {
               i = finalSegmentNumber;
-            };
-          };
-        };
-      };
+            }
+          }
+        }
+      }
     }
   };
 
   segmentRequested[0] = 0;
   var packet = firstSegmentInterest.wireEncode().buffer;
-  firstSegmentInterest = new ndn.Interest()
-  firstSegmentInterest.wireDecode(packet)
+  firstSegmentInterest = new ndn.Interest();
+  firstSegmentInterest.wireDecode(packet);
   this.PIT.insertPitEntry(packet, firstSegmentInterest, callback);
   this.interfaces.dispatch(packet, 1);
-  console.log("dispatched")
+  //console.log("dispatched");
 };
 
 module.exports = IO;

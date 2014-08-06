@@ -2,7 +2,7 @@
   "name": "ndn-io",
   "version": "0.0.29",
   "description": "NDN I/O module fore node.js and the browser",
-  "main": "./src/ndn-io.js",
+  "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -18,7 +18,9 @@
   "bugs": {
     "url": "https://github.com/rynomad/ndn-io/issues"
   },
-  "browser": "./src/ndn-io.js",
+  "browser": {
+    "./src/node/readFile.js": "./src/browser/readFile.js"
+  },
   "browserify": {
     "transform": "workerify"
   },
@@ -35,6 +37,7 @@
     "grunt-saucelabs": "~5.1.1",
     "browserify": "~3.41.0",
     "grunt-browserify": "~2.0.5",
-    "grunt-jsdoc": "^0.5.6"
+    "grunt-jsdoc": "^0.5.6",
+    "grunt-contrib-jshint": "^0.10.0"
   }
 }

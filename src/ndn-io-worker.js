@@ -1,10 +1,11 @@
-self.window = ""
+/*
+self.window = "";
 
 var channelTransport = require('ndn-message-channel-transport')
   , io = require("./ndn-io.js");
 
 var fetchResponder = function(uri, success, thingOrObj, firstCoUri) {
-  if (success == true) {
+  if (success === true) {
     self.postMessage({responseTo: "fetch", success: true, uri: uri, thing: thingOrObj, uriActual: firstCoUri})
   } else {
     self.postMessage({responseTo: "fetch", success: false, uri: uri});
@@ -74,3 +75,4 @@ onmessage = function(e){
 
 
 
+*/
