@@ -446,10 +446,10 @@ var RegisteredPrefix = function RegisteredPrefix(prefix, closure)
 };
 
 */
-var Interfaces = require("ndn-classes/src/DataStructures/Interfaces.js")
-  , NameTree = require("ndn-classes/src/DataStructures/NameTree.js")
-  , PIT = require("ndn-classes/src/DataStructures/PIT.js")
-  , ContentStore = require("ndn-classes/src/DataStructures/ContentStore.js")
+var Interfaces = require("ndn-contrib/src/DataStructures/Interfaces.js")
+  , NameTree = require("ndn-contrib/src/DataStructures/NameTree.js")
+  , PIT = require("ndn-contrib/src/DataStructures/PIT.js")
+  , ContentStore = require("ndn-contrib/src/DataStructures/ContentStore.js")
   , Publisher = require("./Publisher.js")
   , ndn;
 
@@ -463,7 +463,7 @@ var Interfaces = require("ndn-classes/src/DataStructures/Interfaces.js")
 function IO (transportClass, connectionParameters, contentStore){
   this.interfaces = new Interfaces(this);
   this.interfaces.installTransport(transportClass);
-  this.interfaces.newFace(transportClass.protocolKey, connectionParameters);
+  this.interfaces.newFace(transportClass.prototype.name, connectionParameters);
   this.nameTree = (contentStore) ? contentStore.nameTree : new NameTree();
   this.PIT = new PIT(this.nameTree);
   this.contentStore = contentStore || new ContentStore(this.nameTree);

@@ -3,9 +3,8 @@ module.exports = function(grunt){
   grunt.initConfig({
     browserify: {
       test: {
-        files: {
-          "test/browser/test.js": ["test/browser/browser-spec.js"]
-        },
+        src: "test/browser/spec.js",
+        dest: "test/browser/browser-spec.js",
         options: {
           'transform': ["workerify"]
         }
@@ -19,6 +18,15 @@ module.exports = function(grunt){
         }
       }
     },
+    mochaTest: {
+      suite: {
+        options: {
+          reporter: 'spec'
+          ,clearRequireCache: true
+        },
+        src: ["test/node/spec.js"]
+      },
+    },
     jshint: {
       options: {
         curly: true,
@@ -28,52 +36,27 @@ module.exports = function(grunt){
       },
       All: ["src/*.js", "src/**/*.js"]
     },
-    connect: {
-      server: {
-      }
-    },
-    'saucelabs-mocha': {
+    watch: {
       all: {
-        options: {
-          urls: ["http://127.0.0.1:8000/mocha/browser/test.html"],
-          username: "rynomadCSU",
-          key: "c954c8b8-41ce-45b1-bba2-3b8806d5e2cf",
-          tunnelTimeout: 5,
-          concurrency: 3,
-          browsers: browsers,
-          testname: "ndn-io",
-          tags: ["master"]
-        }
-      }
-    },
-    mochaSelenium: {
-      options: {
-        // Mocha options
-        reporter: 'spec',
-        timeout: 30e3,
-        // Toggles wd's promises API, default:false
-        usePromises: false,
-        useChrome: true
+        files: ["src/*.js", "src/**/*.js"],
+        tasks: ["jshint", "browserify", "mochaTest" ]
       },
-      firefox: {
-        src: ['test.js'],
-        options: {
-          host: "ondemand.saucelabs.com",
-          port: 80,
-          username: "rynomadCSU",
-          accesskey: "c954c8b8-41ce-45b1-bba2-3b8806d5e2cf"
-        }
+      livereload: {
+        options: { livereload: true },
+        files: ['test/browser/**/*.js'],
       }
+
     }
   })
 
   grunt.loadNpmTasks('grunt-jsdoc');
+  grunt.loadNpmTasks("grunt-mocha-test");
   grunt.loadNpmTasks('grunt-contrib-jshint');
+  grunt.loadNpmTasks("grunt-contrib-watch");
+  grunt.loadNpmTasks("grunt-saucelabs");
+  grunt.loadNpmTasks('grunt-browserify');
 
-  grunt.loadNpmTasks('grunt-browserify')
-  grunt.loadNpmTasks('grunt-saucelabs')
-  grunt.loadNpmTasks('grunt-contrib-connect')
-  grunt.registerTask('tester', ['connect', 'saucelabs-mocha'])
+  grunt.registerTask('suite', ['jshint', 'browserify', "mochaTest"])
   grunt.registerTask('build', ['browserify:test', 'connect', 'saucelabs-mocha'])
 
 }
