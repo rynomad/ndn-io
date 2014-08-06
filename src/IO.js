@@ -446,12 +446,14 @@ var RegisteredPrefix = function RegisteredPrefix(prefix, closure)
 };
 
 */
-var Interfaces = require("ndn-contrib/src/DataStructures/Interfaces.js")
-  , NameTree = require("ndn-contrib/src/DataStructures/NameTree.js")
-  , PIT = require("ndn-contrib/src/DataStructures/PIT.js")
-  , ContentStore = require("ndn-contrib/src/DataStructures/ContentStore.js")
+var contrib = require("ndn-contrib")
+  , Interfaces = contrib.Interfaces
+  , NameTree = contrib.NameTree
+  , PIT = contrib.PIT
+  , ContentStore = contrib.ContentStore
   , Publisher = require("./Publisher.js")
-  , ndn;
+  , FIB = contrib.FIB
+  , ndn = contrib.ndn;
 
 
 /**
@@ -466,25 +468,54 @@ function IO (transportClass, connectionParameters, contentStore){
   this.interfaces.newFace(transportClass.prototype.name, connectionParameters);
   this.nameTree = (contentStore) ? contentStore.nameTree : new NameTree();
   this.PIT = new PIT(this.nameTree);
+  this.FIB = new FIB(this.nameTree);
   this.contentStore = contentStore || new ContentStore(this.nameTree);
   this.ndn = ndn;
   return this;
 }
 
-/** Install the ndn library into the module
- *@param {Object} NDN the ndn-lib object
- */
-IO.installNDN = function(NDN){
-  NameTree.installNDN(NDN);
-  ndn = NDN;
-};
+
+IO.localTransport = require("ndn-lib/js/transport/unix-transport.js");
 
 /** Publish a file, json object or string
  *@param {Buffer|Blob|File|FilePath|JSON|String} toPublish the thing you want to publish
  *@param {String|ndn.Name} name the name to publish the data under (excluding segment)
  */
-IO.prototype.publish = function(toPublish, name){
-  new Publisher(toPublish, name, this.contentStore);
+IO.prototype.publish = function(toPublish, name, freshnessMilliseconds){
+  this.publisher = this.publisher || new Publisher(this);
+
+  return this.publisher.setToPublish(toPublish)
+             .setName(name)
+             .setFreshnessPeriod(freshnessMilliseconds)
+             .publish(this.announcer);
+};
+
+/** settable announce function. Rather than enforce a handshake naming convention/protocol
+ * it is up to application developer convention to negotiate storage request handshakes.
+ * This function is called within {IO.publish} after the data is in the contentStore
+ *@param {Object} firstData the ndn.Data object of the first segment data packet
+ */
+IO.prototype.announcer = function(firstData){};
+
+/** set the announcer function
+  *@param {function} announcer
+  *@returns {this} this for chaining
+  */
+IO.prototype.setAnnouncer = function(announcer){
+  this.announcer = announcer;
+  return this;
+};
+
+/** create an IPC face and a forwarding entry to send interest packets to a listener in the main thread
+ *@param {String} prefix the uri of the prefix to listen on
+ *@param {Class} connectionParameters to use with IO.localTransport (unix in Node, MessageChannel in browser)
+ *@returns {this} this for chaining
+ */
+IO.prototype.addListener = function(prefix, connectionParameters){
+
+  this.FIB.addEntry(prefix, [{
+    faceID: this.Interfaces.newFace(IO.LocalTransport, connectionParameters)
+  }]);
 };
 
 /** handler for incoming interests
@@ -496,7 +527,12 @@ IO.prototype.handleInterest = function(element, faceID){
   interest.wireDecode(element);
   this.contentStore.check(interest, function(result){
     if (result){
-      this.interfaces.dispatch(result, 1);
+      this.interfaces.dispatch(result, faceID);
+    } else {
+      var dispatchFlag = this.FIB.findAllNextHops(interest.name.toUri());
+      if (dispatchFlag !== 0){
+        this.interfaces.dispatch(element, dispatchFlag);
+      }
     }
   });
 };

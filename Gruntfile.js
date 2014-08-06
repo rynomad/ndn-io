@@ -2,12 +2,13 @@ module.exports = function(grunt){
 
   grunt.initConfig({
     browserify: {
-      test: {
+      options:{
+        alias: ["./src/browser/readFile.js:./src/node/readFiles.js"]
+
+      },
+      boom: {
         src: "test/browser/spec.js",
-        dest: "test/browser/browser-spec.js",
-        options: {
-          'transform': ["workerify"]
-        }
+        dest: "test/browser/browser-spec.js"
       }
     },
     jsdoc : {

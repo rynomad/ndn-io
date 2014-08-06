@@ -1,7 +1,7 @@
 {
   "name": "ndn-io",
   "version": "0.0.29",
-  "description": "NDN I/O module fore node.js and the browser",
+  "description": "NDN I/O module for node.js and the browser",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -19,22 +19,17 @@
     "url": "https://github.com/rynomad/ndn-io/issues"
   },
   "browser": {
-    "./src/node/readFile.js": "./src/browser/readFile.js"
-  },
-  "browserify": {
-    "transform": "workerify"
+    "./src/node/readFile.js": "./src/browser/readFile.js",
+    "ndn-lib/js/transports/unix-transport.js": "ndn-contrib/src/Transports/MessageChannel.js"
   },
   "dependencies": {
     "workerify": "~0.2.3",
-    "ndn-message-channel-transport": "*",
-    "ndn-telehash-transport": "*",
-    "ndn-js": "*",
-    "ndn-utils": "*"
+    "ndn-lib": "git+https://github.com/rynomad/ndn-js.git#feross",
+    "ndn-contrib": "*"
   },
   "devDependencies": {
     "grunt": "~0.4.4",
     "grunt-contrib-connect": "~0.7.1",
-    "grunt-saucelabs": "~5.1.1",
     "browserify": "~3.41.0",
     "grunt-browserify": "~2.0.5",
     "grunt-jsdoc": "^0.5.6",
