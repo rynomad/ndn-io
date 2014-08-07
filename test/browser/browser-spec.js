@@ -1,9 +1,965 @@
-require=(function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);throw new Error("Cannot find module '"+o+"'")}var f=n[o]={exports:{}};t[o][0].call(f.exports,function(e){var n=t[o][1][e];return s(n?n:e)},f,f.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
-module.exports = require("./src/IO.js");
+(function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);throw new Error("Cannot find module '"+o+"'")}var f=n[o]={exports:{}};t[o][0].call(f.exports,function(e){var n=t[o][1][e];return s(n?n:e)},f,f.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
 
-},{"./src/IO.js":113}],2:[function(require,module,exports){
+},{}],2:[function(require,module,exports){
+// http://wiki.commonjs.org/wiki/Unit_Testing/1.0
+//
+// THIS IS NOT TESTED NOR LIKELY TO WORK OUTSIDE V8!
+//
+// Originally from narwhal.js (http://narwhaljs.org)
+// Copyright (c) 2009 Thomas Robinson <280north.com>
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the 'Software'), to
+// deal in the Software without restriction, including without limitation the
+// rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
+// sell copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED 'AS IS', WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+// ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+// WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-},{}],3:[function(require,module,exports){
+// when used in node, this will actually load the util module we depend on
+// versus loading the builtin util module as happens otherwise
+// this is a bug in node module loading as far as I am concerned
+var util = require('util/');
+
+var pSlice = Array.prototype.slice;
+var hasOwn = Object.prototype.hasOwnProperty;
+
+// 1. The assert module provides functions that throw
+// AssertionError's when particular conditions are not met. The
+// assert module must conform to the following interface.
+
+var assert = module.exports = ok;
+
+// 2. The AssertionError is defined in assert.
+// new assert.AssertionError({ message: message,
+//                             actual: actual,
+//                             expected: expected })
+
+assert.AssertionError = function AssertionError(options) {
+  this.name = 'AssertionError';
+  this.actual = options.actual;
+  this.expected = options.expected;
+  this.operator = options.operator;
+  if (options.message) {
+    this.message = options.message;
+    this.generatedMessage = false;
+  } else {
+    this.message = getMessage(this);
+    this.generatedMessage = true;
+  }
+  var stackStartFunction = options.stackStartFunction || fail;
+
+  if (Error.captureStackTrace) {
+    Error.captureStackTrace(this, stackStartFunction);
+  }
+  else {
+    // non v8 browsers so we can have a stacktrace
+    var err = new Error();
+    if (err.stack) {
+      var out = err.stack;
+
+      // try to strip useless frames
+      var fn_name = stackStartFunction.name;
+      var idx = out.indexOf('\n' + fn_name);
+      if (idx >= 0) {
+        // once we have located the function frame
+        // we need to strip out everything before it (and its line)
+        var next_line = out.indexOf('\n', idx + 1);
+        out = out.substring(next_line + 1);
+      }
+
+      this.stack = out;
+    }
+  }
+};
+
+// assert.AssertionError instanceof Error
+util.inherits(assert.AssertionError, Error);
+
+function replacer(key, value) {
+  if (util.isUndefined(value)) {
+    return '' + value;
+  }
+  if (util.isNumber(value) && (isNaN(value) || !isFinite(value))) {
+    return value.toString();
+  }
+  if (util.isFunction(value) || util.isRegExp(value)) {
+    return value.toString();
+  }
+  return value;
+}
+
+function truncate(s, n) {
+  if (util.isString(s)) {
+    return s.length < n ? s : s.slice(0, n);
+  } else {
+    return s;
+  }
+}
+
+function getMessage(self) {
+  return truncate(JSON.stringify(self.actual, replacer), 128) + ' ' +
+         self.operator + ' ' +
+         truncate(JSON.stringify(self.expected, replacer), 128);
+}
+
+// At present only the three keys mentioned above are used and
+// understood by the spec. Implementations or sub modules can pass
+// other keys to the AssertionError's constructor - they will be
+// ignored.
+
+// 3. All of the following functions must throw an AssertionError
+// when a corresponding condition is not met, with a message that
+// may be undefined if not provided.  All assertion methods provide
+// both the actual and expected values to the assertion error for
+// display purposes.
+
+function fail(actual, expected, message, operator, stackStartFunction) {
+  throw new assert.AssertionError({
+    message: message,
+    actual: actual,
+    expected: expected,
+    operator: operator,
+    stackStartFunction: stackStartFunction
+  });
+}
+
+// EXTENSION! allows for well behaved errors defined elsewhere.
+assert.fail = fail;
+
+// 4. Pure assertion tests whether a value is truthy, as determined
+// by !!guard.
+// assert.ok(guard, message_opt);
+// This statement is equivalent to assert.equal(true, !!guard,
+// message_opt);. To test strictly for the value true, use
+// assert.strictEqual(true, guard, message_opt);.
+
+function ok(value, message) {
+  if (!value) fail(value, true, message, '==', assert.ok);
+}
+assert.ok = ok;
+
+// 5. The equality assertion tests shallow, coercive equality with
+// ==.
+// assert.equal(actual, expected, message_opt);
+
+assert.equal = function equal(actual, expected, message) {
+  if (actual != expected) fail(actual, expected, message, '==', assert.equal);
+};
+
+// 6. The non-equality assertion tests for whether two objects are not equal
+// with != assert.notEqual(actual, expected, message_opt);
+
+assert.notEqual = function notEqual(actual, expected, message) {
+  if (actual == expected) {
+    fail(actual, expected, message, '!=', assert.notEqual);
+  }
+};
+
+// 7. The equivalence assertion tests a deep equality relation.
+// assert.deepEqual(actual, expected, message_opt);
+
+assert.deepEqual = function deepEqual(actual, expected, message) {
+  if (!_deepEqual(actual, expected)) {
+    fail(actual, expected, message, 'deepEqual', assert.deepEqual);
+  }
+};
+
+function _deepEqual(actual, expected) {
+  // 7.1. All identical values are equivalent, as determined by ===.
+  if (actual === expected) {
+    return true;
+
+  } else if (util.isBuffer(actual) && util.isBuffer(expected)) {
+    if (actual.length != expected.length) return false;
+
+    for (var i = 0; i < actual.length; i++) {
+      if (actual[i] !== expected[i]) return false;
+    }
+
+    return true;
+
+  // 7.2. If the expected value is a Date object, the actual value is
+  // equivalent if it is also a Date object that refers to the same time.
+  } else if (util.isDate(actual) && util.isDate(expected)) {
+    return actual.getTime() === expected.getTime();
+
+  // 7.3 If the expected value is a RegExp object, the actual value is
+  // equivalent if it is also a RegExp object with the same source and
+  // properties (`global`, `multiline`, `lastIndex`, `ignoreCase`).
+  } else if (util.isRegExp(actual) && util.isRegExp(expected)) {
+    return actual.source === expected.source &&
+           actual.global === expected.global &&
+           actual.multiline === expected.multiline &&
+           actual.lastIndex === expected.lastIndex &&
+           actual.ignoreCase === expected.ignoreCase;
+
+  // 7.4. Other pairs that do not both pass typeof value == 'object',
+  // equivalence is determined by ==.
+  } else if (!util.isObject(actual) && !util.isObject(expected)) {
+    return actual == expected;
+
+  // 7.5 For all other Object pairs, including Array objects, equivalence is
+  // determined by having the same number of owned properties (as verified
+  // with Object.prototype.hasOwnProperty.call), the same set of keys
+  // (although not necessarily the same order), equivalent values for every
+  // corresponding key, and an identical 'prototype' property. Note: this
+  // accounts for both named and indexed properties on Arrays.
+  } else {
+    return objEquiv(actual, expected);
+  }
+}
+
+function isArguments(object) {
+  return Object.prototype.toString.call(object) == '[object Arguments]';
+}
+
+function objEquiv(a, b) {
+  if (util.isNullOrUndefined(a) || util.isNullOrUndefined(b))
+    return false;
+  // an identical 'prototype' property.
+  if (a.prototype !== b.prototype) return false;
+  //~~~I've managed to break Object.keys through screwy arguments passing.
+  //   Converting to array solves the problem.
+  if (isArguments(a)) {
+    if (!isArguments(b)) {
+      return false;
+    }
+    a = pSlice.call(a);
+    b = pSlice.call(b);
+    return _deepEqual(a, b);
+  }
+  try {
+    var ka = objectKeys(a),
+        kb = objectKeys(b),
+        key, i;
+  } catch (e) {//happens when one is a string literal and the other isn't
+    return false;
+  }
+  // having the same number of owned properties (keys incorporates
+  // hasOwnProperty)
+  if (ka.length != kb.length)
+    return false;
+  //the same set of keys (although not necessarily the same order),
+  ka.sort();
+  kb.sort();
+  //~~~cheap key test
+  for (i = ka.length - 1; i >= 0; i--) {
+    if (ka[i] != kb[i])
+      return false;
+  }
+  //equivalent values for every corresponding key, and
+  //~~~possibly expensive deep test
+  for (i = ka.length - 1; i >= 0; i--) {
+    key = ka[i];
+    if (!_deepEqual(a[key], b[key])) return false;
+  }
+  return true;
+}
+
+// 8. The non-equivalence assertion tests for any deep inequality.
+// assert.notDeepEqual(actual, expected, message_opt);
+
+assert.notDeepEqual = function notDeepEqual(actual, expected, message) {
+  if (_deepEqual(actual, expected)) {
+    fail(actual, expected, message, 'notDeepEqual', assert.notDeepEqual);
+  }
+};
+
+// 9. The strict equality assertion tests strict equality, as determined by ===.
+// assert.strictEqual(actual, expected, message_opt);
+
+assert.strictEqual = function strictEqual(actual, expected, message) {
+  if (actual !== expected) {
+    fail(actual, expected, message, '===', assert.strictEqual);
+  }
+};
+
+// 10. The strict non-equality assertion tests for strict inequality, as
+// determined by !==.  assert.notStrictEqual(actual, expected, message_opt);
+
+assert.notStrictEqual = function notStrictEqual(actual, expected, message) {
+  if (actual === expected) {
+    fail(actual, expected, message, '!==', assert.notStrictEqual);
+  }
+};
+
+function expectedException(actual, expected) {
+  if (!actual || !expected) {
+    return false;
+  }
+
+  if (Object.prototype.toString.call(expected) == '[object RegExp]') {
+    return expected.test(actual);
+  } else if (actual instanceof expected) {
+    return true;
+  } else if (expected.call({}, actual) === true) {
+    return true;
+  }
+
+  return false;
+}
+
+function _throws(shouldThrow, block, expected, message) {
+  var actual;
+
+  if (util.isString(expected)) {
+    message = expected;
+    expected = null;
+  }
+
+  try {
+    block();
+  } catch (e) {
+    actual = e;
+  }
+
+  message = (expected && expected.name ? ' (' + expected.name + ').' : '.') +
+            (message ? ' ' + message : '.');
+
+  if (shouldThrow && !actual) {
+    fail(actual, expected, 'Missing expected exception' + message);
+  }
+
+  if (!shouldThrow && expectedException(actual, expected)) {
+    fail(actual, expected, 'Got unwanted exception' + message);
+  }
+
+  if ((shouldThrow && actual && expected &&
+      !expectedException(actual, expected)) || (!shouldThrow && actual)) {
+    throw actual;
+  }
+}
+
+// 11. Expected to throw an error:
+// assert.throws(block, Error_opt, message_opt);
+
+assert.throws = function(block, /*optional*/error, /*optional*/message) {
+  _throws.apply(this, [true].concat(pSlice.call(arguments)));
+};
+
+// EXTENSION! This is annoying to write outside this module.
+assert.doesNotThrow = function(block, /*optional*/message) {
+  _throws.apply(this, [false].concat(pSlice.call(arguments)));
+};
+
+assert.ifError = function(err) { if (err) {throw err;}};
+
+var objectKeys = Object.keys || function (obj) {
+  var keys = [];
+  for (var key in obj) {
+    if (hasOwn.call(obj, key)) keys.push(key);
+  }
+  return keys;
+};
+
+},{"util/":4}],3:[function(require,module,exports){
+module.exports = function isBuffer(arg) {
+  return arg && typeof arg === 'object'
+    && typeof arg.copy === 'function'
+    && typeof arg.fill === 'function'
+    && typeof arg.readUInt8 === 'function';
+}
+},{}],4:[function(require,module,exports){
+(function (process,global){
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+var formatRegExp = /%[sdj%]/g;
+exports.format = function(f) {
+  if (!isString(f)) {
+    var objects = [];
+    for (var i = 0; i < arguments.length; i++) {
+      objects.push(inspect(arguments[i]));
+    }
+    return objects.join(' ');
+  }
+
+  var i = 1;
+  var args = arguments;
+  var len = args.length;
+  var str = String(f).replace(formatRegExp, function(x) {
+    if (x === '%%') return '%';
+    if (i >= len) return x;
+    switch (x) {
+      case '%s': return String(args[i++]);
+      case '%d': return Number(args[i++]);
+      case '%j':
+        try {
+          return JSON.stringify(args[i++]);
+        } catch (_) {
+          return '[Circular]';
+        }
+      default:
+        return x;
+    }
+  });
+  for (var x = args[i]; i < len; x = args[++i]) {
+    if (isNull(x) || !isObject(x)) {
+      str += ' ' + x;
+    } else {
+      str += ' ' + inspect(x);
+    }
+  }
+  return str;
+};
+
+
+// Mark that a method should not be used.
+// Returns a modified function which warns once by default.
+// If --no-deprecation is set, then it is a no-op.
+exports.deprecate = function(fn, msg) {
+  // Allow for deprecating things in the process of starting up.
+  if (isUndefined(global.process)) {
+    return function() {
+      return exports.deprecate(fn, msg).apply(this, arguments);
+    };
+  }
+
+  if (process.noDeprecation === true) {
+    return fn;
+  }
+
+  var warned = false;
+  function deprecated() {
+    if (!warned) {
+      if (process.throwDeprecation) {
+        throw new Error(msg);
+      } else if (process.traceDeprecation) {
+        console.trace(msg);
+      } else {
+        console.error(msg);
+      }
+      warned = true;
+    }
+    return fn.apply(this, arguments);
+  }
+
+  return deprecated;
+};
+
+
+var debugs = {};
+var debugEnviron;
+exports.debuglog = function(set) {
+  if (isUndefined(debugEnviron))
+    debugEnviron = process.env.NODE_DEBUG || '';
+  set = set.toUpperCase();
+  if (!debugs[set]) {
+    if (new RegExp('\\b' + set + '\\b', 'i').test(debugEnviron)) {
+      var pid = process.pid;
+      debugs[set] = function() {
+        var msg = exports.format.apply(exports, arguments);
+        console.error('%s %d: %s', set, pid, msg);
+      };
+    } else {
+      debugs[set] = function() {};
+    }
+  }
+  return debugs[set];
+};
+
+
+/**
+ * Echos the value of a value. Trys to print the value out
+ * in the best way possible given the different types.
+ *
+ * @param {Object} obj The object to print out.
+ * @param {Object} opts Optional options object that alters the output.
+ */
+/* legacy: obj, showHidden, depth, colors*/
+function inspect(obj, opts) {
+  // default options
+  var ctx = {
+    seen: [],
+    stylize: stylizeNoColor
+  };
+  // legacy...
+  if (arguments.length >= 3) ctx.depth = arguments[2];
+  if (arguments.length >= 4) ctx.colors = arguments[3];
+  if (isBoolean(opts)) {
+    // legacy...
+    ctx.showHidden = opts;
+  } else if (opts) {
+    // got an "options" object
+    exports._extend(ctx, opts);
+  }
+  // set default options
+  if (isUndefined(ctx.showHidden)) ctx.showHidden = false;
+  if (isUndefined(ctx.depth)) ctx.depth = 2;
+  if (isUndefined(ctx.colors)) ctx.colors = false;
+  if (isUndefined(ctx.customInspect)) ctx.customInspect = true;
+  if (ctx.colors) ctx.stylize = stylizeWithColor;
+  return formatValue(ctx, obj, ctx.depth);
+}
+exports.inspect = inspect;
+
+
+// http://en.wikipedia.org/wiki/ANSI_escape_code#graphics
+inspect.colors = {
+  'bold' : [1, 22],
+  'italic' : [3, 23],
+  'underline' : [4, 24],
+  'inverse' : [7, 27],
+  'white' : [37, 39],
+  'grey' : [90, 39],
+  'black' : [30, 39],
+  'blue' : [34, 39],
+  'cyan' : [36, 39],
+  'green' : [32, 39],
+  'magenta' : [35, 39],
+  'red' : [31, 39],
+  'yellow' : [33, 39]
+};
+
+// Don't use 'blue' not visible on cmd.exe
+inspect.styles = {
+  'special': 'cyan',
+  'number': 'yellow',
+  'boolean': 'yellow',
+  'undefined': 'grey',
+  'null': 'bold',
+  'string': 'green',
+  'date': 'magenta',
+  // "name": intentionally not styling
+  'regexp': 'red'
+};
+
+
+function stylizeWithColor(str, styleType) {
+  var style = inspect.styles[styleType];
+
+  if (style) {
+    return '\u001b[' + inspect.colors[style][0] + 'm' + str +
+           '\u001b[' + inspect.colors[style][1] + 'm';
+  } else {
+    return str;
+  }
+}
+
+
+function stylizeNoColor(str, styleType) {
+  return str;
+}
+
+
+function arrayToHash(array) {
+  var hash = {};
+
+  array.forEach(function(val, idx) {
+    hash[val] = true;
+  });
+
+  return hash;
+}
+
+
+function formatValue(ctx, value, recurseTimes) {
+  // Provide a hook for user-specified inspect functions.
+  // Check that value is an object with an inspect function on it
+  if (ctx.customInspect &&
+      value &&
+      isFunction(value.inspect) &&
+      // Filter out the util module, it's inspect function is special
+      value.inspect !== exports.inspect &&
+      // Also filter out any prototype objects using the circular check.
+      !(value.constructor && value.constructor.prototype === value)) {
+    var ret = value.inspect(recurseTimes, ctx);
+    if (!isString(ret)) {
+      ret = formatValue(ctx, ret, recurseTimes);
+    }
+    return ret;
+  }
+
+  // Primitive types cannot have properties
+  var primitive = formatPrimitive(ctx, value);
+  if (primitive) {
+    return primitive;
+  }
+
+  // Look up the keys of the object.
+  var keys = Object.keys(value);
+  var visibleKeys = arrayToHash(keys);
+
+  if (ctx.showHidden) {
+    keys = Object.getOwnPropertyNames(value);
+  }
+
+  // IE doesn't make error fields non-enumerable
+  // http://msdn.microsoft.com/en-us/library/ie/dww52sbt(v=vs.94).aspx
+  if (isError(value)
+      && (keys.indexOf('message') >= 0 || keys.indexOf('description') >= 0)) {
+    return formatError(value);
+  }
+
+  // Some type of object without properties can be shortcutted.
+  if (keys.length === 0) {
+    if (isFunction(value)) {
+      var name = value.name ? ': ' + value.name : '';
+      return ctx.stylize('[Function' + name + ']', 'special');
+    }
+    if (isRegExp(value)) {
+      return ctx.stylize(RegExp.prototype.toString.call(value), 'regexp');
+    }
+    if (isDate(value)) {
+      return ctx.stylize(Date.prototype.toString.call(value), 'date');
+    }
+    if (isError(value)) {
+      return formatError(value);
+    }
+  }
+
+  var base = '', array = false, braces = ['{', '}'];
+
+  // Make Array say that they are Array
+  if (isArray(value)) {
+    array = true;
+    braces = ['[', ']'];
+  }
+
+  // Make functions say that they are functions
+  if (isFunction(value)) {
+    var n = value.name ? ': ' + value.name : '';
+    base = ' [Function' + n + ']';
+  }
+
+  // Make RegExps say that they are RegExps
+  if (isRegExp(value)) {
+    base = ' ' + RegExp.prototype.toString.call(value);
+  }
+
+  // Make dates with properties first say the date
+  if (isDate(value)) {
+    base = ' ' + Date.prototype.toUTCString.call(value);
+  }
+
+  // Make error with message first say the error
+  if (isError(value)) {
+    base = ' ' + formatError(value);
+  }
+
+  if (keys.length === 0 && (!array || value.length == 0)) {
+    return braces[0] + base + braces[1];
+  }
+
+  if (recurseTimes < 0) {
+    if (isRegExp(value)) {
+      return ctx.stylize(RegExp.prototype.toString.call(value), 'regexp');
+    } else {
+      return ctx.stylize('[Object]', 'special');
+    }
+  }
+
+  ctx.seen.push(value);
+
+  var output;
+  if (array) {
+    output = formatArray(ctx, value, recurseTimes, visibleKeys, keys);
+  } else {
+    output = keys.map(function(key) {
+      return formatProperty(ctx, value, recurseTimes, visibleKeys, key, array);
+    });
+  }
+
+  ctx.seen.pop();
+
+  return reduceToSingleString(output, base, braces);
+}
+
+
+function formatPrimitive(ctx, value) {
+  if (isUndefined(value))
+    return ctx.stylize('undefined', 'undefined');
+  if (isString(value)) {
+    var simple = '\'' + JSON.stringify(value).replace(/^"|"$/g, '')
+                                             .replace(/'/g, "\\'")
+                                             .replace(/\\"/g, '"') + '\'';
+    return ctx.stylize(simple, 'string');
+  }
+  if (isNumber(value))
+    return ctx.stylize('' + value, 'number');
+  if (isBoolean(value))
+    return ctx.stylize('' + value, 'boolean');
+  // For some reason typeof null is "object", so special case here.
+  if (isNull(value))
+    return ctx.stylize('null', 'null');
+}
+
+
+function formatError(value) {
+  return '[' + Error.prototype.toString.call(value) + ']';
+}
+
+
+function formatArray(ctx, value, recurseTimes, visibleKeys, keys) {
+  var output = [];
+  for (var i = 0, l = value.length; i < l; ++i) {
+    if (hasOwnProperty(value, String(i))) {
+      output.push(formatProperty(ctx, value, recurseTimes, visibleKeys,
+          String(i), true));
+    } else {
+      output.push('');
+    }
+  }
+  keys.forEach(function(key) {
+    if (!key.match(/^\d+$/)) {
+      output.push(formatProperty(ctx, value, recurseTimes, visibleKeys,
+          key, true));
+    }
+  });
+  return output;
+}
+
+
+function formatProperty(ctx, value, recurseTimes, visibleKeys, key, array) {
+  var name, str, desc;
+  desc = Object.getOwnPropertyDescriptor(value, key) || { value: value[key] };
+  if (desc.get) {
+    if (desc.set) {
+      str = ctx.stylize('[Getter/Setter]', 'special');
+    } else {
+      str = ctx.stylize('[Getter]', 'special');
+    }
+  } else {
+    if (desc.set) {
+      str = ctx.stylize('[Setter]', 'special');
+    }
+  }
+  if (!hasOwnProperty(visibleKeys, key)) {
+    name = '[' + key + ']';
+  }
+  if (!str) {
+    if (ctx.seen.indexOf(desc.value) < 0) {
+      if (isNull(recurseTimes)) {
+        str = formatValue(ctx, desc.value, null);
+      } else {
+        str = formatValue(ctx, desc.value, recurseTimes - 1);
+      }
+      if (str.indexOf('\n') > -1) {
+        if (array) {
+          str = str.split('\n').map(function(line) {
+            return '  ' + line;
+          }).join('\n').substr(2);
+        } else {
+          str = '\n' + str.split('\n').map(function(line) {
+            return '   ' + line;
+          }).join('\n');
+        }
+      }
+    } else {
+      str = ctx.stylize('[Circular]', 'special');
+    }
+  }
+  if (isUndefined(name)) {
+    if (array && key.match(/^\d+$/)) {
+      return str;
+    }
+    name = JSON.stringify('' + key);
+    if (name.match(/^"([a-zA-Z_][a-zA-Z_0-9]*)"$/)) {
+      name = name.substr(1, name.length - 2);
+      name = ctx.stylize(name, 'name');
+    } else {
+      name = name.replace(/'/g, "\\'")
+                 .replace(/\\"/g, '"')
+                 .replace(/(^"|"$)/g, "'");
+      name = ctx.stylize(name, 'string');
+    }
+  }
+
+  return name + ': ' + str;
+}
+
+
+function reduceToSingleString(output, base, braces) {
+  var numLinesEst = 0;
+  var length = output.reduce(function(prev, cur) {
+    numLinesEst++;
+    if (cur.indexOf('\n') >= 0) numLinesEst++;
+    return prev + cur.replace(/\u001b\[\d\d?m/g, '').length + 1;
+  }, 0);
+
+  if (length > 60) {
+    return braces[0] +
+           (base === '' ? '' : base + '\n ') +
+           ' ' +
+           output.join(',\n  ') +
+           ' ' +
+           braces[1];
+  }
+
+  return braces[0] + base + ' ' + output.join(', ') + ' ' + braces[1];
+}
+
+
+// NOTE: These type checking functions intentionally don't use `instanceof`
+// because it is fragile and can be easily faked with `Object.create()`.
+function isArray(ar) {
+  return Array.isArray(ar);
+}
+exports.isArray = isArray;
+
+function isBoolean(arg) {
+  return typeof arg === 'boolean';
+}
+exports.isBoolean = isBoolean;
+
+function isNull(arg) {
+  return arg === null;
+}
+exports.isNull = isNull;
+
+function isNullOrUndefined(arg) {
+  return arg == null;
+}
+exports.isNullOrUndefined = isNullOrUndefined;
+
+function isNumber(arg) {
+  return typeof arg === 'number';
+}
+exports.isNumber = isNumber;
+
+function isString(arg) {
+  return typeof arg === 'string';
+}
+exports.isString = isString;
+
+function isSymbol(arg) {
+  return typeof arg === 'symbol';
+}
+exports.isSymbol = isSymbol;
+
+function isUndefined(arg) {
+  return arg === void 0;
+}
+exports.isUndefined = isUndefined;
+
+function isRegExp(re) {
+  return isObject(re) && objectToString(re) === '[object RegExp]';
+}
+exports.isRegExp = isRegExp;
+
+function isObject(arg) {
+  return typeof arg === 'object' && arg !== null;
+}
+exports.isObject = isObject;
+
+function isDate(d) {
+  return isObject(d) && objectToString(d) === '[object Date]';
+}
+exports.isDate = isDate;
+
+function isError(e) {
+  return isObject(e) &&
+      (objectToString(e) === '[object Error]' || e instanceof Error);
+}
+exports.isError = isError;
+
+function isFunction(arg) {
+  return typeof arg === 'function';
+}
+exports.isFunction = isFunction;
+
+function isPrimitive(arg) {
+  return arg === null ||
+         typeof arg === 'boolean' ||
+         typeof arg === 'number' ||
+         typeof arg === 'string' ||
+         typeof arg === 'symbol' ||  // ES6 symbol
+         typeof arg === 'undefined';
+}
+exports.isPrimitive = isPrimitive;
+
+exports.isBuffer = require('./support/isBuffer');
+
+function objectToString(o) {
+  return Object.prototype.toString.call(o);
+}
+
+
+function pad(n) {
+  return n < 10 ? '0' + n.toString(10) : n.toString(10);
+}
+
+
+var months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep',
+              'Oct', 'Nov', 'Dec'];
+
+// 26 Feb 16:19:34
+function timestamp() {
+  var d = new Date();
+  var time = [pad(d.getHours()),
+              pad(d.getMinutes()),
+              pad(d.getSeconds())].join(':');
+  return [d.getDate(), months[d.getMonth()], time].join(' ');
+}
+
+
+// log is just a thin wrapper to console.log that prepends a timestamp
+exports.log = function() {
+  console.log('%s - %s', timestamp(), exports.format.apply(exports, arguments));
+};
+
+
+/**
+ * Inherit the prototype methods from one constructor into another.
+ *
+ * The Function.prototype.inherits from lang.js rewritten as a standalone
+ * function (not on Function.prototype). NOTE: If this file is to be loaded
+ * during bootstrapping this function needs to be rewritten using some native
+ * functions as prototype setup using normal JavaScript does not work as
+ * expected during bootstrapping (see mirror.js in r114903).
+ *
+ * @param {function} ctor Constructor function which needs to inherit the
+ *     prototype.
+ * @param {function} superCtor Constructor function to inherit prototype from.
+ */
+exports.inherits = require('inherits');
+
+exports._extend = function(origin, add) {
+  // Don't do anything if add isn't an object
+  if (!add || !isObject(add)) return origin;
+
+  var keys = Object.keys(add);
+  var i = keys.length;
+  while (i--) {
+    origin[keys[i]] = add[keys[i]];
+  }
+  return origin;
+};
+
+function hasOwnProperty(obj, prop) {
+  return Object.prototype.hasOwnProperty.call(obj, prop);
+}
+
+}).call(this,require("1oXin8"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
+},{"./support/isBuffer":3,"1oXin8":16,"inherits":14}],5:[function(require,module,exports){
 /*!
  * The buffer module from node.js, for the browser.
  *
@@ -96,11 +1052,12 @@ function Buffer (subject, encoding, noZero) {
     buf._set(subject)
   } else if (isArrayish(subject)) {
     // Treat array-ish objects as a byte array
-    for (i = 0; i < length; i++) {
-      if (Buffer.isBuffer(subject))
+    if (Buffer.isBuffer(subject)) {
+      for (i = 0; i < length; i++)
         buf[i] = subject.readUInt8(i)
-      else
-        buf[i] = subject[i]
+    } else {
+      for (i = 0; i < length; i++)
+        buf[i] = ((subject[i] % 256) + 256) % 256
     }
   } else if (type === 'string') {
     buf.write(subject, 0, encoding)
@@ -141,7 +1098,7 @@ Buffer.isBuffer = function (b) {
 
 Buffer.byteLength = function (str, encoding) {
   var ret
-  str = str + ''
+  str = str.toString()
   switch (encoding || 'utf8') {
     case 'hex':
       ret = str.length / 2
@@ -171,8 +1128,7 @@ Buffer.byteLength = function (str, encoding) {
 }
 
 Buffer.concat = function (list, totalLength) {
-  assert(isArray(list), 'Usage: Buffer.concat(list, [totalLength])\n' +
-      'list should be an Array.')
+  assert(isArray(list), 'Usage: Buffer.concat(list[, length])')
 
   if (list.length === 0) {
     return new Buffer(0)
@@ -181,7 +1137,7 @@ Buffer.concat = function (list, totalLength) {
   }
 
   var i
-  if (typeof totalLength !== 'number') {
+  if (totalLength === undefined) {
     totalLength = 0
     for (i = 0; i < list.length; i++) {
       totalLength += list[i].length
@@ -198,10 +1154,28 @@ Buffer.concat = function (list, totalLength) {
   return buf
 }
 
+Buffer.compare = function (a, b) {
+  assert(Buffer.isBuffer(a) && Buffer.isBuffer(b), 'Arguments must be Buffers')
+  var x = a.length
+  var y = b.length
+  for (var i = 0, len = Math.min(x, y); i < len && a[i] === b[i]; i++) {}
+  if (i !== len) {
+    x = a[i]
+    y = b[i]
+  }
+  if (x < y) {
+    return -1
+  }
+  if (y < x) {
+    return 1
+  }
+  return 0
+}
+
 // BUFFER INSTANCE METHODS
 // =======================
 
-function _hexWrite (buf, string, offset, length) {
+function hexWrite (buf, string, offset, length) {
   offset = Number(offset) || 0
   var remaining = buf.length - offset
   if (!length) {
@@ -225,35 +1199,30 @@ function _hexWrite (buf, string, offset, length) {
     assert(!isNaN(byte), 'Invalid hex string')
     buf[offset + i] = byte
   }
-  Buffer._charsWritten = i * 2
   return i
 }
 
-function _utf8Write (buf, string, offset, length) {
-  var charsWritten = Buffer._charsWritten =
-    blitBuffer(utf8ToBytes(string), buf, offset, length)
+function utf8Write (buf, string, offset, length) {
+  var charsWritten = blitBuffer(utf8ToBytes(string), buf, offset, length)
   return charsWritten
 }
 
-function _asciiWrite (buf, string, offset, length) {
-  var charsWritten = Buffer._charsWritten =
-    blitBuffer(asciiToBytes(string), buf, offset, length)
+function asciiWrite (buf, string, offset, length) {
+  var charsWritten = blitBuffer(asciiToBytes(string), buf, offset, length)
   return charsWritten
 }
 
-function _binaryWrite (buf, string, offset, length) {
-  return _asciiWrite(buf, string, offset, length)
+function binaryWrite (buf, string, offset, length) {
+  return asciiWrite(buf, string, offset, length)
 }
 
-function _base64Write (buf, string, offset, length) {
-  var charsWritten = Buffer._charsWritten =
-    blitBuffer(base64ToBytes(string), buf, offset, length)
+function base64Write (buf, string, offset, length) {
+  var charsWritten = blitBuffer(base64ToBytes(string), buf, offset, length)
   return charsWritten
 }
 
-function _utf16leWrite (buf, string, offset, length) {
-  var charsWritten = Buffer._charsWritten =
-    blitBuffer(utf16leToBytes(string), buf, offset, length)
+function utf16leWrite (buf, string, offset, length) {
+  var charsWritten = blitBuffer(utf16leToBytes(string), buf, offset, length)
   return charsWritten
 }
 
@@ -287,26 +1256,26 @@ Buffer.prototype.write = function (string, offset, length, encoding) {
   var ret
   switch (encoding) {
     case 'hex':
-      ret = _hexWrite(this, string, offset, length)
+      ret = hexWrite(this, string, offset, length)
       break
     case 'utf8':
     case 'utf-8':
-      ret = _utf8Write(this, string, offset, length)
+      ret = utf8Write(this, string, offset, length)
       break
     case 'ascii':
-      ret = _asciiWrite(this, string, offset, length)
+      ret = asciiWrite(this, string, offset, length)
       break
     case 'binary':
-      ret = _binaryWrite(this, string, offset, length)
+      ret = binaryWrite(this, string, offset, length)
       break
     case 'base64':
-      ret = _base64Write(this, string, offset, length)
+      ret = base64Write(this, string, offset, length)
       break
     case 'ucs2':
     case 'ucs-2':
     case 'utf16le':
     case 'utf-16le':
-      ret = _utf16leWrite(this, string, offset, length)
+      ret = utf16leWrite(this, string, offset, length)
       break
     default:
       throw new Error('Unknown encoding')
@@ -319,9 +1288,7 @@ Buffer.prototype.toString = function (encoding, start, end) {
 
   encoding = String(encoding || 'utf8').toLowerCase()
   start = Number(start) || 0
-  end = (end !== undefined)
-    ? Number(end)
-    : end = self.length
+  end = (end === undefined) ? self.length : Number(end)
 
   // Fastpath empty strings
   if (end === start)
@@ -330,26 +1297,26 @@ Buffer.prototype.toString = function (encoding, start, end) {
   var ret
   switch (encoding) {
     case 'hex':
-      ret = _hexSlice(self, start, end)
+      ret = hexSlice(self, start, end)
       break
     case 'utf8':
     case 'utf-8':
-      ret = _utf8Slice(self, start, end)
+      ret = utf8Slice(self, start, end)
       break
     case 'ascii':
-      ret = _asciiSlice(self, start, end)
+      ret = asciiSlice(self, start, end)
       break
     case 'binary':
-      ret = _binarySlice(self, start, end)
+      ret = binarySlice(self, start, end)
       break
     case 'base64':
-      ret = _base64Slice(self, start, end)
+      ret = base64Slice(self, start, end)
       break
     case 'ucs2':
     case 'ucs-2':
     case 'utf16le':
     case 'utf-16le':
-      ret = _utf16leSlice(self, start, end)
+      ret = utf16leSlice(self, start, end)
       break
     default:
       throw new Error('Unknown encoding')
@@ -362,6 +1329,16 @@ Buffer.prototype.toJSON = function () {
     type: 'Buffer',
     data: Array.prototype.slice.call(this._arr || this, 0)
   }
+}
+
+Buffer.prototype.equals = function (b) {
+  assert(Buffer.isBuffer(b), 'Argument must be a Buffer')
+  return Buffer.compare(this, b) === 0
+}
+
+Buffer.prototype.compare = function (b) {
+  assert(Buffer.isBuffer(b), 'Argument must be a Buffer')
+  return Buffer.compare(this, b)
 }
 
 // copy(targetBuffer, targetStart=0, sourceStart=0, sourceEnd=buffer.length)
@@ -392,14 +1369,15 @@ Buffer.prototype.copy = function (target, target_start, start, end) {
   var len = end - start
 
   if (len < 100 || !Buffer._useTypedArrays) {
-    for (var i = 0; i < len; i++)
+    for (var i = 0; i < len; i++) {
       target[i + target_start] = this[i + start]
+    }
   } else {
     target._set(this.subarray(start, start + len), target_start)
   }
 }
 
-function _base64Slice (buf, start, end) {
+function base64Slice (buf, start, end) {
   if (start === 0 && end === buf.length) {
     return base64.fromByteArray(buf)
   } else {
@@ -407,7 +1385,7 @@ function _base64Slice (buf, start, end) {
   }
 }
 
-function _utf8Slice (buf, start, end) {
+function utf8Slice (buf, start, end) {
   var res = ''
   var tmp = ''
   end = Math.min(buf.length, end)
@@ -424,20 +1402,21 @@ function _utf8Slice (buf, start, end) {
   return res + decodeUtf8Char(tmp)
 }
 
-function _asciiSlice (buf, start, end) {
+function asciiSlice (buf, start, end) {
   var ret = ''
   end = Math.min(buf.length, end)
 
-  for (var i = start; i < end; i++)
+  for (var i = start; i < end; i++) {
     ret += String.fromCharCode(buf[i])
+  }
   return ret
 }
 
-function _binarySlice (buf, start, end) {
-  return _asciiSlice(buf, start, end)
+function binarySlice (buf, start, end) {
+  return asciiSlice(buf, start, end)
 }
 
-function _hexSlice (buf, start, end) {
+function hexSlice (buf, start, end) {
   var len = buf.length
 
   if (!start || start < 0) start = 0
@@ -450,11 +1429,11 @@ function _hexSlice (buf, start, end) {
   return out
 }
 
-function _utf16leSlice (buf, start, end) {
+function utf16leSlice (buf, start, end) {
   var bytes = buf.slice(start, end)
   var res = ''
   for (var i = 0; i < bytes.length; i += 2) {
-    res += String.fromCharCode(bytes[i] + bytes[i+1] * 256)
+    res += String.fromCharCode(bytes[i] + bytes[i + 1] * 256)
   }
   return res
 }
@@ -500,7 +1479,7 @@ Buffer.prototype.readUInt8 = function (offset, noAssert) {
   return this[offset]
 }
 
-function _readUInt16 (buf, offset, littleEndian, noAssert) {
+function readUInt16 (buf, offset, littleEndian, noAssert) {
   if (!noAssert) {
     assert(typeof littleEndian === 'boolean', 'missing or invalid endian')
     assert(offset !== undefined && offset !== null, 'missing offset')
@@ -525,14 +1504,14 @@ function _readUInt16 (buf, offset, littleEndian, noAssert) {
 }
 
 Buffer.prototype.readUInt16LE = function (offset, noAssert) {
-  return _readUInt16(this, offset, true, noAssert)
+  return readUInt16(this, offset, true, noAssert)
 }
 
 Buffer.prototype.readUInt16BE = function (offset, noAssert) {
-  return _readUInt16(this, offset, false, noAssert)
+  return readUInt16(this, offset, false, noAssert)
 }
 
-function _readUInt32 (buf, offset, littleEndian, noAssert) {
+function readUInt32 (buf, offset, littleEndian, noAssert) {
   if (!noAssert) {
     assert(typeof littleEndian === 'boolean', 'missing or invalid endian')
     assert(offset !== undefined && offset !== null, 'missing offset')
@@ -565,11 +1544,11 @@ function _readUInt32 (buf, offset, littleEndian, noAssert) {
 }
 
 Buffer.prototype.readUInt32LE = function (offset, noAssert) {
-  return _readUInt32(this, offset, true, noAssert)
+  return readUInt32(this, offset, true, noAssert)
 }
 
 Buffer.prototype.readUInt32BE = function (offset, noAssert) {
-  return _readUInt32(this, offset, false, noAssert)
+  return readUInt32(this, offset, false, noAssert)
 }
 
 Buffer.prototype.readInt8 = function (offset, noAssert) {
@@ -589,7 +1568,7 @@ Buffer.prototype.readInt8 = function (offset, noAssert) {
     return this[offset]
 }
 
-function _readInt16 (buf, offset, littleEndian, noAssert) {
+function readInt16 (buf, offset, littleEndian, noAssert) {
   if (!noAssert) {
     assert(typeof littleEndian === 'boolean', 'missing or invalid endian')
     assert(offset !== undefined && offset !== null, 'missing offset')
@@ -600,7 +1579,7 @@ function _readInt16 (buf, offset, littleEndian, noAssert) {
   if (offset >= len)
     return
 
-  var val = _readUInt16(buf, offset, littleEndian, true)
+  var val = readUInt16(buf, offset, littleEndian, true)
   var neg = val & 0x8000
   if (neg)
     return (0xffff - val + 1) * -1
@@ -609,14 +1588,14 @@ function _readInt16 (buf, offset, littleEndian, noAssert) {
 }
 
 Buffer.prototype.readInt16LE = function (offset, noAssert) {
-  return _readInt16(this, offset, true, noAssert)
+  return readInt16(this, offset, true, noAssert)
 }
 
 Buffer.prototype.readInt16BE = function (offset, noAssert) {
-  return _readInt16(this, offset, false, noAssert)
+  return readInt16(this, offset, false, noAssert)
 }
 
-function _readInt32 (buf, offset, littleEndian, noAssert) {
+function readInt32 (buf, offset, littleEndian, noAssert) {
   if (!noAssert) {
     assert(typeof littleEndian === 'boolean', 'missing or invalid endian')
     assert(offset !== undefined && offset !== null, 'missing offset')
@@ -627,7 +1606,7 @@ function _readInt32 (buf, offset, littleEndian, noAssert) {
   if (offset >= len)
     return
 
-  var val = _readUInt32(buf, offset, littleEndian, true)
+  var val = readUInt32(buf, offset, littleEndian, true)
   var neg = val & 0x80000000
   if (neg)
     return (0xffffffff - val + 1) * -1
@@ -636,14 +1615,14 @@ function _readInt32 (buf, offset, littleEndian, noAssert) {
 }
 
 Buffer.prototype.readInt32LE = function (offset, noAssert) {
-  return _readInt32(this, offset, true, noAssert)
+  return readInt32(this, offset, true, noAssert)
 }
 
 Buffer.prototype.readInt32BE = function (offset, noAssert) {
-  return _readInt32(this, offset, false, noAssert)
+  return readInt32(this, offset, false, noAssert)
 }
 
-function _readFloat (buf, offset, littleEndian, noAssert) {
+function readFloat (buf, offset, littleEndian, noAssert) {
   if (!noAssert) {
     assert(typeof littleEndian === 'boolean', 'missing or invalid endian')
     assert(offset + 3 < buf.length, 'Trying to read beyond buffer length')
@@ -653,14 +1632,14 @@ function _readFloat (buf, offset, littleEndian, noAssert) {
 }
 
 Buffer.prototype.readFloatLE = function (offset, noAssert) {
-  return _readFloat(this, offset, true, noAssert)
+  return readFloat(this, offset, true, noAssert)
 }
 
 Buffer.prototype.readFloatBE = function (offset, noAssert) {
-  return _readFloat(this, offset, false, noAssert)
+  return readFloat(this, offset, false, noAssert)
 }
 
-function _readDouble (buf, offset, littleEndian, noAssert) {
+function readDouble (buf, offset, littleEndian, noAssert) {
   if (!noAssert) {
     assert(typeof littleEndian === 'boolean', 'missing or invalid endian')
     assert(offset + 7 < buf.length, 'Trying to read beyond buffer length')
@@ -670,11 +1649,11 @@ function _readDouble (buf, offset, littleEndian, noAssert) {
 }
 
 Buffer.prototype.readDoubleLE = function (offset, noAssert) {
-  return _readDouble(this, offset, true, noAssert)
+  return readDouble(this, offset, true, noAssert)
 }
 
 Buffer.prototype.readDoubleBE = function (offset, noAssert) {
-  return _readDouble(this, offset, false, noAssert)
+  return readDouble(this, offset, false, noAssert)
 }
 
 Buffer.prototype.writeUInt8 = function (value, offset, noAssert) {
@@ -688,9 +1667,10 @@ Buffer.prototype.writeUInt8 = function (value, offset, noAssert) {
   if (offset >= this.length) return
 
   this[offset] = value
+  return offset + 1
 }
 
-function _writeUInt16 (buf, value, offset, littleEndian, noAssert) {
+function writeUInt16 (buf, value, offset, littleEndian, noAssert) {
   if (!noAssert) {
     assert(value !== undefined && value !== null, 'missing value')
     assert(typeof littleEndian === 'boolean', 'missing or invalid endian')
@@ -708,17 +1688,18 @@ function _writeUInt16 (buf, value, offset, littleEndian, noAssert) {
         (value & (0xff << (8 * (littleEndian ? i : 1 - i)))) >>>
             (littleEndian ? i : 1 - i) * 8
   }
+  return offset + 2
 }
 
 Buffer.prototype.writeUInt16LE = function (value, offset, noAssert) {
-  _writeUInt16(this, value, offset, true, noAssert)
+  return writeUInt16(this, value, offset, true, noAssert)
 }
 
 Buffer.prototype.writeUInt16BE = function (value, offset, noAssert) {
-  _writeUInt16(this, value, offset, false, noAssert)
+  return writeUInt16(this, value, offset, false, noAssert)
 }
 
-function _writeUInt32 (buf, value, offset, littleEndian, noAssert) {
+function writeUInt32 (buf, value, offset, littleEndian, noAssert) {
   if (!noAssert) {
     assert(value !== undefined && value !== null, 'missing value')
     assert(typeof littleEndian === 'boolean', 'missing or invalid endian')
@@ -735,14 +1716,15 @@ function _writeUInt32 (buf, value, offset, littleEndian, noAssert) {
     buf[offset + i] =
         (value >>> (littleEndian ? i : 3 - i) * 8) & 0xff
   }
+  return offset + 4
 }
 
 Buffer.prototype.writeUInt32LE = function (value, offset, noAssert) {
-  _writeUInt32(this, value, offset, true, noAssert)
+  return writeUInt32(this, value, offset, true, noAssert)
 }
 
 Buffer.prototype.writeUInt32BE = function (value, offset, noAssert) {
-  _writeUInt32(this, value, offset, false, noAssert)
+  return writeUInt32(this, value, offset, false, noAssert)
 }
 
 Buffer.prototype.writeInt8 = function (value, offset, noAssert) {
@@ -760,9 +1742,10 @@ Buffer.prototype.writeInt8 = function (value, offset, noAssert) {
     this.writeUInt8(value, offset, noAssert)
   else
     this.writeUInt8(0xff + value + 1, offset, noAssert)
+  return offset + 1
 }
 
-function _writeInt16 (buf, value, offset, littleEndian, noAssert) {
+function writeInt16 (buf, value, offset, littleEndian, noAssert) {
   if (!noAssert) {
     assert(value !== undefined && value !== null, 'missing value')
     assert(typeof littleEndian === 'boolean', 'missing or invalid endian')
@@ -776,20 +1759,21 @@ function _writeInt16 (buf, value, offset, littleEndian, noAssert) {
     return
 
   if (value >= 0)
-    _writeUInt16(buf, value, offset, littleEndian, noAssert)
+    writeUInt16(buf, value, offset, littleEndian, noAssert)
   else
-    _writeUInt16(buf, 0xffff + value + 1, offset, littleEndian, noAssert)
+    writeUInt16(buf, 0xffff + value + 1, offset, littleEndian, noAssert)
+  return offset + 2
 }
 
 Buffer.prototype.writeInt16LE = function (value, offset, noAssert) {
-  _writeInt16(this, value, offset, true, noAssert)
+  return writeInt16(this, value, offset, true, noAssert)
 }
 
 Buffer.prototype.writeInt16BE = function (value, offset, noAssert) {
-  _writeInt16(this, value, offset, false, noAssert)
+  return writeInt16(this, value, offset, false, noAssert)
 }
 
-function _writeInt32 (buf, value, offset, littleEndian, noAssert) {
+function writeInt32 (buf, value, offset, littleEndian, noAssert) {
   if (!noAssert) {
     assert(value !== undefined && value !== null, 'missing value')
     assert(typeof littleEndian === 'boolean', 'missing or invalid endian')
@@ -803,20 +1787,21 @@ function _writeInt32 (buf, value, offset, littleEndian, noAssert) {
     return
 
   if (value >= 0)
-    _writeUInt32(buf, value, offset, littleEndian, noAssert)
+    writeUInt32(buf, value, offset, littleEndian, noAssert)
   else
-    _writeUInt32(buf, 0xffffffff + value + 1, offset, littleEndian, noAssert)
+    writeUInt32(buf, 0xffffffff + value + 1, offset, littleEndian, noAssert)
+  return offset + 4
 }
 
 Buffer.prototype.writeInt32LE = function (value, offset, noAssert) {
-  _writeInt32(this, value, offset, true, noAssert)
+  return writeInt32(this, value, offset, true, noAssert)
 }
 
 Buffer.prototype.writeInt32BE = function (value, offset, noAssert) {
-  _writeInt32(this, value, offset, false, noAssert)
+  return writeInt32(this, value, offset, false, noAssert)
 }
 
-function _writeFloat (buf, value, offset, littleEndian, noAssert) {
+function writeFloat (buf, value, offset, littleEndian, noAssert) {
   if (!noAssert) {
     assert(value !== undefined && value !== null, 'missing value')
     assert(typeof littleEndian === 'boolean', 'missing or invalid endian')
@@ -830,17 +1815,18 @@ function _writeFloat (buf, value, offset, littleEndian, noAssert) {
     return
 
   ieee754.write(buf, value, offset, littleEndian, 23, 4)
+  return offset + 4
 }
 
 Buffer.prototype.writeFloatLE = function (value, offset, noAssert) {
-  _writeFloat(this, value, offset, true, noAssert)
+  return writeFloat(this, value, offset, true, noAssert)
 }
 
 Buffer.prototype.writeFloatBE = function (value, offset, noAssert) {
-  _writeFloat(this, value, offset, false, noAssert)
+  return writeFloat(this, value, offset, false, noAssert)
 }
 
-function _writeDouble (buf, value, offset, littleEndian, noAssert) {
+function writeDouble (buf, value, offset, littleEndian, noAssert) {
   if (!noAssert) {
     assert(value !== undefined && value !== null, 'missing value')
     assert(typeof littleEndian === 'boolean', 'missing or invalid endian')
@@ -855,14 +1841,15 @@ function _writeDouble (buf, value, offset, littleEndian, noAssert) {
     return
 
   ieee754.write(buf, value, offset, littleEndian, 52, 8)
+  return offset + 8
 }
 
 Buffer.prototype.writeDoubleLE = function (value, offset, noAssert) {
-  _writeDouble(this, value, offset, true, noAssert)
+  return writeDouble(this, value, offset, true, noAssert)
 }
 
 Buffer.prototype.writeDoubleBE = function (value, offset, noAssert) {
-  _writeDouble(this, value, offset, false, noAssert)
+  return writeDouble(this, value, offset, false, noAssert)
 }
 
 // fill(value, start=0, end=buffer.length)
@@ -871,11 +1858,6 @@ Buffer.prototype.fill = function (value, start, end) {
   if (!start) start = 0
   if (!end) end = this.length
 
-  if (typeof value === 'string') {
-    value = value.charCodeAt(0)
-  }
-
-  assert(typeof value === 'number' && !isNaN(value), 'value is not a number')
   assert(end >= start, 'end < start')
 
   // Fill 0 bytes; we're done
@@ -885,9 +1867,20 @@ Buffer.prototype.fill = function (value, start, end) {
   assert(start >= 0 && start < this.length, 'start out of bounds')
   assert(end >= 0 && end <= this.length, 'end out of bounds')
 
-  for (var i = start; i < end; i++) {
-    this[i] = value
+  var i
+  if (typeof value === 'number') {
+    for (i = start; i < end; i++) {
+      this[i] = value
+    }
+  } else {
+    var bytes = utf8ToBytes(value.toString())
+    var len = bytes.length
+    for (i = start; i < end; i++) {
+      this[i] = bytes[i % len]
+    }
   }
+
+  return this
 }
 
 Buffer.prototype.inspect = function () {
@@ -913,8 +1906,9 @@ Buffer.prototype.toArrayBuffer = function () {
       return (new Buffer(this)).buffer
     } else {
       var buf = new Uint8Array(this.length)
-      for (var i = 0, len = buf.length; i < len; i += 1)
+      for (var i = 0, len = buf.length; i < len; i += 1) {
         buf[i] = this[i]
+      }
       return buf.buffer
     }
   } else {
@@ -924,11 +1918,6 @@ Buffer.prototype.toArrayBuffer = function () {
 
 // HELPER FUNCTIONS
 // ================
-
-function stringtrim (str) {
-  if (str.trim) return str.trim()
-  return str.replace(/^\s+|\s+$/g, '')
-}
 
 var BP = Buffer.prototype
 
@@ -950,6 +1939,8 @@ Buffer._augment = function (arr) {
   arr.toString = BP.toString
   arr.toLocaleString = BP.toString
   arr.toJSON = BP.toJSON
+  arr.equals = BP.equals
+  arr.compare = BP.compare
   arr.copy = BP.copy
   arr.slice = BP.slice
   arr.readUInt8 = BP.readUInt8
@@ -985,6 +1976,11 @@ Buffer._augment = function (arr) {
   arr.toArrayBuffer = BP.toArrayBuffer
 
   return arr
+}
+
+function stringtrim (str) {
+  if (str.trim) return str.trim()
+  return str.replace(/^\s+|\s+$/g, '')
 }
 
 // slice(start, end)
@@ -1027,14 +2023,15 @@ function utf8ToBytes (str) {
   var byteArray = []
   for (var i = 0; i < str.length; i++) {
     var b = str.charCodeAt(i)
-    if (b <= 0x7F)
-      byteArray.push(str.charCodeAt(i))
-    else {
+    if (b <= 0x7F) {
+      byteArray.push(b)
+    } else {
       var start = i
       if (b >= 0xD800 && b <= 0xDFFF) i++
       var h = encodeURIComponent(str.slice(start, i+1)).substr(1).split('%')
-      for (var j = 0; j < h.length; j++)
+      for (var j = 0; j < h.length; j++) {
         byteArray.push(parseInt(h[j], 16))
+      }
     }
   }
   return byteArray
@@ -1068,7 +2065,6 @@ function base64ToBytes (str) {
 }
 
 function blitBuffer (src, dst, offset, length) {
-  var pos
   for (var i = 0; i < length; i++) {
     if ((i + offset >= dst.length) || (i >= src.length))
       break
@@ -1114,7 +2110,7 @@ function assert (test, message) {
   if (!test) throw new Error(message || 'Failed assertion')
 }
 
-},{"base64-js":4,"ieee754":5}],4:[function(require,module,exports){
+},{"base64-js":6,"ieee754":7}],6:[function(require,module,exports){
 var lookup = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
 
 ;(function (exports) {
@@ -1236,7 +2232,7 @@ var lookup = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
 	exports.fromByteArray = uint8ToBase64
 }(typeof exports === 'undefined' ? (this.base64js = {}) : exports))
 
-},{}],5:[function(require,module,exports){
+},{}],7:[function(require,module,exports){
 exports.read = function(buffer, offset, isLE, mLen, nBytes) {
   var e, m,
       eLen = nBytes * 8 - mLen - 1,
@@ -1322,7 +2318,7 @@ exports.write = function(buffer, value, offset, isLE, mLen, nBytes) {
   buffer[offset + i - d] |= s * 128;
 };
 
-},{}],6:[function(require,module,exports){
+},{}],8:[function(require,module,exports){
 var Buffer = require('buffer').Buffer;
 var intSize = 4;
 var zeroBuffer = new Buffer(intSize); zeroBuffer.fill(0);
@@ -1359,7 +2355,7 @@ function hash(buf, fn, hashSize, bigEndian) {
 
 module.exports = { hash: hash };
 
-},{"buffer":3}],7:[function(require,module,exports){
+},{"buffer":5}],9:[function(require,module,exports){
 var Buffer = require('buffer').Buffer
 var sha = require('./sha')
 var sha256 = require('./sha256')
@@ -1458,7 +2454,7 @@ each(['createCredentials'
   }
 })
 
-},{"./md5":8,"./rng":9,"./sha":10,"./sha256":11,"buffer":3}],8:[function(require,module,exports){
+},{"./md5":10,"./rng":11,"./sha":12,"./sha256":13,"buffer":5}],10:[function(require,module,exports){
 /*
  * A JavaScript implementation of the RSA Data Security, Inc. MD5 Message
  * Digest Algorithm, as defined in RFC 1321.
@@ -1623,7 +2619,7 @@ module.exports = function md5(buf) {
   return helpers.hash(buf, core_md5, 16);
 };
 
-},{"./helpers":6}],9:[function(require,module,exports){
+},{"./helpers":8}],11:[function(require,module,exports){
 // Original code adapted from Robert Kieffer.
 // details at https://github.com/broofa/node-uuid
 (function() {
@@ -1656,7 +2652,7 @@ module.exports = function md5(buf) {
 
 }())
 
-},{}],10:[function(require,module,exports){
+},{}],12:[function(require,module,exports){
 /*
  * A JavaScript implementation of the Secure Hash Algorithm, SHA-1, as defined
  * in FIPS PUB 180-1
@@ -1759,7 +2755,7 @@ module.exports = function sha1(buf) {
   return helpers.hash(buf, core_sha1, 20, true);
 };
 
-},{"./helpers":6}],11:[function(require,module,exports){
+},{"./helpers":8}],13:[function(require,module,exports){
 
 /**
  * A JavaScript implementation of the Secure Hash Algorithm, SHA-256, as defined
@@ -1840,69 +2836,32 @@ module.exports = function sha256(buf) {
   return helpers.hash(buf, core_sha256, 32, true);
 };
 
-},{"./helpers":6}],12:[function(require,module,exports){
-// shim for using process in browser
-
-var process = module.exports = {};
-
-process.nextTick = (function () {
-    var canSetImmediate = typeof window !== 'undefined'
-    && window.setImmediate;
-    var canPost = typeof window !== 'undefined'
-    && window.postMessage && window.addEventListener
-    ;
-
-    if (canSetImmediate) {
-        return function (f) { return window.setImmediate(f) };
-    }
-
-    if (canPost) {
-        var queue = [];
-        window.addEventListener('message', function (ev) {
-            var source = ev.source;
-            if ((source === window || source === null) && ev.data === 'process-tick') {
-                ev.stopPropagation();
-                if (queue.length > 0) {
-                    var fn = queue.shift();
-                    fn();
-                }
-            }
-        }, true);
-
-        return function nextTick(fn) {
-            queue.push(fn);
-            window.postMessage('process-tick', '*');
-        };
-    }
-
-    return function nextTick(fn) {
-        setTimeout(fn, 0);
-    };
-})();
-
-process.title = 'browser';
-process.browser = true;
-process.env = {};
-process.argv = [];
-
-function noop() {}
-
-process.on = noop;
-process.once = noop;
-process.off = noop;
-process.emit = noop;
-
-process.binding = function (name) {
-    throw new Error('process.binding is not supported');
+},{"./helpers":8}],14:[function(require,module,exports){
+if (typeof Object.create === 'function') {
+  // implementation from standard node.js 'util' module
+  module.exports = function inherits(ctor, superCtor) {
+    ctor.super_ = superCtor
+    ctor.prototype = Object.create(superCtor.prototype, {
+      constructor: {
+        value: ctor,
+        enumerable: false,
+        writable: true,
+        configurable: true
+      }
+    });
+  };
+} else {
+  // old school shim for old browsers
+  module.exports = function inherits(ctor, superCtor) {
+    ctor.super_ = superCtor
+    var TempCtor = function () {}
+    TempCtor.prototype = superCtor.prototype
+    ctor.prototype = new TempCtor()
+    ctor.prototype.constructor = ctor
+  }
 }
 
-// TODO(shtylman)
-process.cwd = function () { return '/' };
-process.chdir = function (dir) {
-    throw new Error('process.chdir is not supported');
-};
-
-},{}],13:[function(require,module,exports){
+},{}],15:[function(require,module,exports){
 (function (process){
 // Copyright Joyent, Inc. and other Node contributors.
 //
@@ -2129,8 +3088,73 @@ var substr = 'ab'.substr(-1) === 'b'
     }
 ;
 
-}).call(this,require("/home/ryan/git/ndn-modules/ndn-io/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"))
-},{"/home/ryan/git/ndn-modules/ndn-io/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":12}],14:[function(require,module,exports){
+}).call(this,require("1oXin8"))
+},{"1oXin8":16}],16:[function(require,module,exports){
+// shim for using process in browser
+
+var process = module.exports = {};
+
+process.nextTick = (function () {
+    var canSetImmediate = typeof window !== 'undefined'
+    && window.setImmediate;
+    var canPost = typeof window !== 'undefined'
+    && window.postMessage && window.addEventListener
+    ;
+
+    if (canSetImmediate) {
+        return function (f) { return window.setImmediate(f) };
+    }
+
+    if (canPost) {
+        var queue = [];
+        window.addEventListener('message', function (ev) {
+            var source = ev.source;
+            if ((source === window || source === null) && ev.data === 'process-tick') {
+                ev.stopPropagation();
+                if (queue.length > 0) {
+                    var fn = queue.shift();
+                    fn();
+                }
+            }
+        }, true);
+
+        return function nextTick(fn) {
+            queue.push(fn);
+            window.postMessage('process-tick', '*');
+        };
+    }
+
+    return function nextTick(fn) {
+        setTimeout(fn, 0);
+    };
+})();
+
+process.title = 'browser';
+process.browser = true;
+process.env = {};
+process.argv = [];
+
+function noop() {}
+
+process.on = noop;
+process.addListener = noop;
+process.once = noop;
+process.off = noop;
+process.removeListener = noop;
+process.removeAllListeners = noop;
+process.emit = noop;
+
+process.binding = function (name) {
+    throw new Error('process.binding is not supported');
+}
+
+// TODO(shtylman)
+process.cwd = function () { return '/' };
+process.chdir = function (dir) {
+    throw new Error('process.chdir is not supported');
+};
+
+},{}],17:[function(require,module,exports){
 exports.ndn = require("ndn-lib");
 exports.NameTree = require("./src/DataStructures/NameTree.js").installNDN(exports.ndn);
 exports.PIT = require("./src/DataStructures/PIT.js").installNDN(exports.ndn);
@@ -2141,7 +3165,7 @@ exports.Transports = require("./src/Transports/node.js");
 
 module.exports = exports;
 
-},{"./src/DataStructures/ContentStore.js":89,"./src/DataStructures/FIB.js":90,"./src/DataStructures/Interfaces.js":91,"./src/DataStructures/NameTree.js":92,"./src/DataStructures/PIT.js":94,"./src/Transports/node.js":95,"ndn-lib":24}],15:[function(require,module,exports){
+},{"./src/DataStructures/ContentStore.js":92,"./src/DataStructures/FIB.js":93,"./src/DataStructures/Interfaces.js":94,"./src/DataStructures/NameTree.js":95,"./src/DataStructures/PIT.js":97,"./src/Transports/node.js":98,"ndn-lib":27}],18:[function(require,module,exports){
 /*! asn1hex-1.1.js (c) 2012 Kenji Urushima | kjur.github.com/jsrsasign/license
  */
 //
@@ -2445,7 +3469,7 @@ ASN1HEX.getDecendantHexTLVByNthList = _asnhex_getDecendantHexTLVByNthList;
 exports.ASN1HEX = ASN1HEX;
 module.exports = exports;
 
-},{"jsbn":84}],16:[function(require,module,exports){
+},{"jsbn":87}],19:[function(require,module,exports){
 // Copyright (c) 2003-2009  Tom Wu
 // All Rights Reserved.
 // 
@@ -2543,7 +3567,7 @@ exports.hex2b64  = hex2b64;
 
 module.exports = exports;
 
-},{}],17:[function(require,module,exports){
+},{}],20:[function(require,module,exports){
 /*
 CryptoJS v3.1.2
 code.google.com/p/crypto-js
@@ -3269,7 +4293,7 @@ var CryptoJS = CryptoJS || (function (Math, undefined) {
 exports.CryptoJS = CryptoJS;
 module.exports = exports;
 
-},{}],18:[function(require,module,exports){
+},{}],21:[function(require,module,exports){
 /*! crypto-1.0.4.js (c) 2013 Kenji Urushima | kjur.github.com/jsrsasign/license
  */
 /*
@@ -3972,7 +4996,7 @@ KJUR.crypto.Signature = function(params) {
 exports.KJUR = KJUR;
 module.exports = exports;
 
-},{"./sha256.js":23,"jsbn":84}],19:[function(require,module,exports){
+},{"./sha256.js":26,"jsbn":87}],22:[function(require,module,exports){
 // Copyright (c) 2003-2009  Tom Wu
 // All Rights Reserved.
 // 
@@ -4182,7 +5206,7 @@ module.exports = exports;
 
 //RSAKey.prototype.encrypt_b64 = RSAEncryptB64;
 
-},{"jsbn":84}],20:[function(require,module,exports){
+},{"jsbn":87}],23:[function(require,module,exports){
 // Copyright (c) 2003-2009  Tom Wu
 // All Rights Reserved.
 // 
@@ -4452,7 +5476,7 @@ RSAKey.prototype.decryptOAEP = RSADecryptOAEP;
 exports.RSAKey = RSAKey;
 module.exports = exports;
 
-},{"./rsa.js":19,"jsbn":84}],21:[function(require,module,exports){
+},{"./rsa.js":22,"jsbn":87}],24:[function(require,module,exports){
 /*! rsapem-1.1.js (c) 2012 Kenji Urushima | kjur.github.com/jsrsasign/license
  */
 //
@@ -4569,7 +5593,7 @@ RSAKey.prototype.readPrivateKeyFromASN1HexString = _rsapem_readPrivateKeyFromASN
 exports.RSAKey = RSAKey;
 module.exports = exports;
 
-},{"./asn1hex-1.1.js":15,"./base64.js":16,"./rsa2.js":20}],22:[function(require,module,exports){
+},{"./asn1hex-1.1.js":18,"./base64.js":19,"./rsa2.js":23}],25:[function(require,module,exports){
 /*! rsasign-1.2.2.js (c) 2012 Kenji Urushima | kjur.github.com/jsrsasign/license
  */
 //
@@ -4980,7 +6004,7 @@ RSAKey.SALT_LEN_RECOVER = -2;
 exports.RSAKey = RSAKey
 module.exports = exports;
 
-},{"./rsapem-1.1.js":21,"jsbn":84}],23:[function(require,module,exports){
+},{"./rsapem-1.1.js":24,"jsbn":87}],26:[function(require,module,exports){
 /*
 CryptoJS v3.1.2
 code.google.com/p/crypto-js
@@ -5181,7 +6205,7 @@ exports.CryptoJS = C
 module.exports = exports
 
 
-},{"./core.js":17}],24:[function(require,module,exports){
+},{"./core.js":20}],27:[function(require,module,exports){
 exports.Face = require('./js/face.js').Face;
 exports.NDN = require('./js/face.js').NDN; // deprecated
 exports.Closure = require('./js/closure.js').Closure;
@@ -5229,7 +6253,7 @@ exports.NoVerifyPolicyManager = require('./js/security/policy/no-verify-policy-m
 exports.SelfVerifyPolicyManager = require('./js/security/policy/self-verify-policy-manager.js').SelfVerifyPolicyManager;
 exports.KeyChain = require('./js/security/key-chain.js').KeyChain;
 
-},{"./js/closure.js":27,"./js/data.js":28,"./js/encoding/binary-xml-wire-format.js":32,"./js/encoding/data-utils.js":33,"./js/encoding/encoding-utils.js":36,"./js/encoding/protobuf-tlv.js":37,"./js/encoding/tlv-wire-format.js":39,"./js/encoding/wire-format.js":44,"./js/exclude.js":45,"./js/face.js":47,"./js/forwarding-flags.js":49,"./js/interest.js":50,"./js/key-locator.js":51,"./js/key.js":52,"./js/meta-info.js":54,"./js/name.js":55,"./js/publisher-public-key-digest.js":57,"./js/security/identity/identity-manager.js":60,"./js/security/identity/identity-storage.js":61,"./js/security/identity/memory-identity-storage.js":62,"./js/security/identity/memory-private-key-storage.js":63,"./js/security/key-chain.js":65,"./js/security/key-manager.js":66,"./js/security/policy/no-verify-policy-manager.js":67,"./js/security/policy/policy-manager.js":68,"./js/security/policy/self-verify-policy-manager.js":69,"./js/security/policy/validation-request.js":70,"./js/security/security-exception.js":71,"./js/security/security-types.js":72,"./js/sha256-with-rsa-signature.js":73,"./js/transport/tcp-transport.js":25,"./js/transport/unix-transport.js":75,"./js/util/blob.js":77,"./js/util/memory-content-cache.js":79,"./js/util/name-enumeration.js":80,"./js/util/ndn-time.js":82}],25:[function(require,module,exports){
+},{"./js/closure.js":30,"./js/data.js":31,"./js/encoding/binary-xml-wire-format.js":35,"./js/encoding/data-utils.js":36,"./js/encoding/encoding-utils.js":39,"./js/encoding/protobuf-tlv.js":40,"./js/encoding/tlv-wire-format.js":42,"./js/encoding/wire-format.js":47,"./js/exclude.js":48,"./js/face.js":50,"./js/forwarding-flags.js":52,"./js/interest.js":53,"./js/key-locator.js":54,"./js/key.js":55,"./js/meta-info.js":57,"./js/name.js":58,"./js/publisher-public-key-digest.js":60,"./js/security/identity/identity-manager.js":63,"./js/security/identity/identity-storage.js":64,"./js/security/identity/memory-identity-storage.js":65,"./js/security/identity/memory-private-key-storage.js":66,"./js/security/key-chain.js":68,"./js/security/key-manager.js":69,"./js/security/policy/no-verify-policy-manager.js":70,"./js/security/policy/policy-manager.js":71,"./js/security/policy/self-verify-policy-manager.js":72,"./js/security/policy/validation-request.js":73,"./js/security/security-exception.js":74,"./js/security/security-types.js":75,"./js/sha256-with-rsa-signature.js":76,"./js/transport/tcp-transport.js":28,"./js/transport/unix-transport.js":78,"./js/util/blob.js":80,"./js/util/memory-content-cache.js":82,"./js/util/name-enumeration.js":83,"./js/util/ndn-time.js":85}],28:[function(require,module,exports){
 /**
  * Copyright (C) 2013-2014 Regents of the University of California.
  * @author: Jeff Thompson <jefft0@remap.ucla.edu>
@@ -5252,7 +6276,7 @@ exports.KeyChain = require('./js/security/key-chain.js').KeyChain;
 // The Face constructor uses TcpTransport by default which is not available in the browser, so override to WebSocketTransport.
 exports.TcpTransport = require("./transport/web-socket-transport").WebSocketTransport;
 
-},{"./transport/web-socket-transport":76}],26:[function(require,module,exports){
+},{"./transport/web-socket-transport":79}],29:[function(require,module,exports){
 (function (Buffer){
 /**
  * Copyright (C) 2013-2014 Regents of the University of California.
@@ -5414,7 +6438,7 @@ module.exports = exports
 // After this we include contrib/feross/buffer.js to define the Buffer class.
 
 }).call(this,require("buffer").Buffer)
-},{"../contrib/securityLib/asn1hex-1.1.js":15,"../contrib/securityLib/base64.js":16,"../contrib/securityLib/crypto-1.0.js":18,"../contrib/securityLib/rsasign-1.2.js":22,"./key.js":52,"buffer":3}],27:[function(require,module,exports){
+},{"../contrib/securityLib/asn1hex-1.1.js":18,"../contrib/securityLib/base64.js":19,"../contrib/securityLib/crypto-1.0.js":21,"../contrib/securityLib/rsasign-1.2.js":25,"./key.js":55,"buffer":5}],30:[function(require,module,exports){
 /**
  * Provide the callback closure for the async communication methods in the Face class.
  * Copyright (C) 2013-2014 Regents of the University of California.
@@ -5510,7 +6534,7 @@ UpcallInfo.prototype.toString = function()
 
 exports.UpcallInfo = UpcallInfo;
 
-},{}],28:[function(require,module,exports){
+},{}],31:[function(require,module,exports){
 (function (Buffer){
 /**
  * This class represents an NDN Data object.
@@ -5876,7 +6900,7 @@ ContentObject.prototype = new Data();
 exports.ContentObject = ContentObject;
 
 }).call(this,require("buffer").Buffer)
-},{"./crypto.js":26,"./encoding/binary-xml-encoder.js":30,"./encoding/binary-xml-wire-format.js":32,"./encoding/data-utils.js":33,"./encoding/wire-format.js":44,"./key-locator.js":51,"./meta-info.js":54,"./name.js":55,"./security/key-manager.js":66,"./sha256-with-rsa-signature.js":73,"./util/blob.js":77,"./util/ndn-protoco-id-tags.js":81,"./util/signed-blob.js":83,"buffer":3}],29:[function(require,module,exports){
+},{"./crypto.js":29,"./encoding/binary-xml-encoder.js":33,"./encoding/binary-xml-wire-format.js":35,"./encoding/data-utils.js":36,"./encoding/wire-format.js":47,"./key-locator.js":54,"./meta-info.js":57,"./name.js":58,"./security/key-manager.js":69,"./sha256-with-rsa-signature.js":76,"./util/blob.js":80,"./util/ndn-protoco-id-tags.js":84,"./util/signed-blob.js":86,"buffer":5}],32:[function(require,module,exports){
 (function (Buffer){
 /**
  * This class is used to decode ndnb binary elements (blob, type/value pairs).
@@ -6604,7 +7628,7 @@ BinaryXMLDecoder.prototype.seek = function(offset)
 };
 
 }).call(this,require("buffer").Buffer)
-},{"../log.js":53,"../util/ndn-protoco-id-tags.js":81,"../util/ndn-time.js":82,"./data-utils.js":33,"./decoding-exception.js":34,"buffer":3}],30:[function(require,module,exports){
+},{"../log.js":56,"../util/ndn-protoco-id-tags.js":84,"../util/ndn-time.js":85,"./data-utils.js":36,"./decoding-exception.js":37,"buffer":5}],33:[function(require,module,exports){
 /**
  * This class is used to encode ndnb binary elements (blob, type/value pairs).
  *
@@ -7052,7 +8076,7 @@ BinaryXMLEncoder.prototype.getReducedOstream = function()
   return this.ostream.slice(0, this.offset);
 };
 
-},{"../log.js":53,"../util/dynamic-buffer.js":78,"../util/ndn-protoco-id-tags.js":81,"./data-utils.js":33}],31:[function(require,module,exports){
+},{"../log.js":56,"../util/dynamic-buffer.js":81,"../util/ndn-protoco-id-tags.js":84,"./data-utils.js":36}],34:[function(require,module,exports){
 /**
  * This class uses BinaryXMLDecoder to follow the structure of a ndnb binary element to
  * determine its end.
@@ -7260,7 +8284,7 @@ BinaryXMLStructureDecoder.prototype.seek = function(offset)
   this.offset = offset;
 };
 
-},{"../util/dynamic-buffer.js":78,"./binary-xml-decoder.js":29}],32:[function(require,module,exports){
+},{"../util/dynamic-buffer.js":81,"./binary-xml-decoder.js":32}],35:[function(require,module,exports){
 /**
  * Copyright (C) 2013-2014 Regents of the University of California.
  * @author: Jeff Thompson <jefft0@remap.ucla.edu>
@@ -7610,7 +8634,7 @@ BinaryXmlWireFormat.decodeData = function(data, decoder)
            signedPortionEndOffset: signedPortionEndOffset };
 };
 
-},{"../exclude.js":45,"../key-locator.js":51,"../meta-info.js":54,"../name.js":55,"../publisher-public-key-digest.js":57,"../sha256-with-rsa-signature.js":73,"../util/blob.js":77,"../util/ndn-protoco-id-tags.js":81,"./binary-xml-decoder.js":29,"./binary-xml-encoder.js":30,"./data-utils.js":33,"./wire-format.js":44}],33:[function(require,module,exports){
+},{"../exclude.js":48,"../key-locator.js":54,"../meta-info.js":57,"../name.js":58,"../publisher-public-key-digest.js":60,"../sha256-with-rsa-signature.js":76,"../util/blob.js":80,"../util/ndn-protoco-id-tags.js":84,"./binary-xml-decoder.js":32,"./binary-xml-encoder.js":33,"./data-utils.js":36,"./wire-format.js":47}],36:[function(require,module,exports){
 (function (Buffer){
 /**
  * This class contains utilities to help parse the data
@@ -7931,7 +8955,7 @@ DataUtils.shuffle = function(array)
 };
 
 }).call(this,require("buffer").Buffer)
-},{"buffer":3}],34:[function(require,module,exports){
+},{"buffer":5}],37:[function(require,module,exports){
 /**
  * Copyright (C) 2014 Regents of the University of California.
  * @author: Jeff Thompson <jefft0@remap.ucla.edu>
@@ -7969,7 +8993,7 @@ DecodingException.prototype.name = "DecodingException";
 
 exports.DecodingException = DecodingException;
 
-},{}],35:[function(require,module,exports){
+},{}],38:[function(require,module,exports){
 /**
  * Copyright (C) 2013-2014 Regents of the University of California.
  * @author: Jeff Thompson <jefft0@remap.ucla.edu>
@@ -8080,7 +9104,7 @@ ElementReader.prototype.onReceivedData = function(/* Buffer */ data)
   }
 };
 
-},{"../log.js":53,"./binary-xml-structure-decoder.js":31,"./data-utils.js":33,"./tlv/tlv-structure-decoder.js":42,"./tlv/tlv.js":43}],36:[function(require,module,exports){
+},{"../log.js":56,"./binary-xml-structure-decoder.js":34,"./data-utils.js":36,"./tlv/tlv-structure-decoder.js":45,"./tlv/tlv.js":46}],39:[function(require,module,exports){
 /**
  * This file contains utilities to help encode and decode NDN objects.
  * Copyright (C) 2013-2014 Regents of the University of California.
@@ -8333,7 +9357,7 @@ function encodeToBinaryInterest(interest) { return interest.wireEncode().buf(); 
  */
 function encodeToBinaryContentObject(data) { return data.wireEncode().buf(); }
 
-},{"../data.js":28,"../face-instance.js":46,"../forwarding-entry.js":48,"../interest.js":50,"../key-locator.js":51,"../key.js":52,"../log.js":53,"./binary-xml-decoder.js":29,"./binary-xml-encoder.js":30,"./data-utils.js":33,"./wire-format.js":44}],37:[function(require,module,exports){
+},{"../data.js":31,"../face-instance.js":49,"../forwarding-entry.js":51,"../interest.js":53,"../key-locator.js":54,"../key.js":55,"../log.js":56,"./binary-xml-decoder.js":32,"./binary-xml-encoder.js":33,"./data-utils.js":36,"./wire-format.js":47}],40:[function(require,module,exports){
 /**
  * Copyright (C) 2014 Regents of the University of California.
  * @author: Jeff Thompson <jefft0@remap.ucla.edu>
@@ -8558,7 +9582,7 @@ ProtobufTlv._decodeFieldValue = function(field, tlvType, decoder, endOffset)
     throw new Error("ProtobufTlv.decode: Unknown field type");
 };
 
-},{"../util/blob.js":77,"./tlv/tlv-decoder.js":40,"./tlv/tlv-encoder.js":41,"protobufjs/dist/ProtoBuf.js":85}],38:[function(require,module,exports){
+},{"../util/blob.js":80,"./tlv/tlv-decoder.js":43,"./tlv/tlv-encoder.js":44,"protobufjs/dist/ProtoBuf.js":88}],41:[function(require,module,exports){
 (function (Buffer){
 /**
  * Copyright (C) 2013-2014 Regents of the University of California.
@@ -9054,7 +10078,7 @@ Tlv0_1WireFormat.decodeMetaInfo = function(metaInfo, decoder)
 };
 
 }).call(this,require("buffer").Buffer)
-},{"../crypto.js":26,"../exclude.js":45,"../key-locator.js":51,"../meta-info.js":54,"../publisher-public-key-digest.js":57,"../sha256-with-rsa-signature.js":73,"../util/blob.js":77,"./decoding-exception.js":34,"./tlv/tlv-decoder.js":40,"./tlv/tlv-encoder.js":41,"./tlv/tlv.js":43,"./wire-format.js":44,"buffer":3}],39:[function(require,module,exports){
+},{"../crypto.js":29,"../exclude.js":48,"../key-locator.js":54,"../meta-info.js":57,"../publisher-public-key-digest.js":60,"../sha256-with-rsa-signature.js":76,"../util/blob.js":80,"./decoding-exception.js":37,"./tlv/tlv-decoder.js":43,"./tlv/tlv-encoder.js":44,"./tlv/tlv.js":46,"./wire-format.js":47,"buffer":5}],42:[function(require,module,exports){
 /**
  * Copyright (C) 2013-2014 Regents of the University of California.
  * @author: Jeff Thompson <jefft0@remap.ucla.edu>
@@ -9114,7 +10138,7 @@ TlvWireFormat.get = function()
 // This module will be loaded because WireFormat loads it.
 WireFormat.setDefaultWireFormat(TlvWireFormat.get());
 
-},{"./tlv-0_1-wire-format.js":38,"./wire-format.js":44}],40:[function(require,module,exports){
+},{"./tlv-0_1-wire-format.js":41,"./wire-format.js":47}],43:[function(require,module,exports){
 /**
  * Copyright (C) 2014 Regents of the University of California.
  * @author: Jeff Thompson <jefft0@remap.ucla.edu>
@@ -9453,7 +10477,7 @@ TlvDecoder.prototype.seek = function(offset)
   this.offset = offset;
 };
 
-},{"../decoding-exception.js":34}],41:[function(require,module,exports){
+},{"../decoding-exception.js":37}],44:[function(require,module,exports){
 /**
  * Copyright (C) 2014 Regents of the University of California.
  * @author: Jeff Thompson <jefft0@remap.ucla.edu>
@@ -9673,7 +10697,7 @@ TlvEncoder.prototype.getOutput = function()
   return this.output.array.slice(this.output.array.length - this.length);
 };
 
-},{"../../util/dynamic-buffer.js":78}],42:[function(require,module,exports){
+},{"../../util/dynamic-buffer.js":81}],45:[function(require,module,exports){
 (function (Buffer){
 /**
  * Copyright (C) 2014 Regents of the University of California.
@@ -9898,7 +10922,7 @@ TlvStructureDecoder.prototype.seek = function(offset)
 };
 
 }).call(this,require("buffer").Buffer)
-},{"./tlv-decoder.js":40,"buffer":3}],43:[function(require,module,exports){
+},{"./tlv-decoder.js":43,"buffer":5}],46:[function(require,module,exports){
 /**
  * Copyright (C) 2014 Regents of the University of California.
  * @author: Jeff Thompson <jefft0@remap.ucla.edu>
@@ -9970,7 +10994,7 @@ Tlv.StatusText =       140;
 Tlv.SignatureType_DigestSha256 = 0;
 Tlv.SignatureType_SignatureSha256WithRsa = 1;
 
-},{}],44:[function(require,module,exports){
+},{}],47:[function(require,module,exports){
 /**
  * This class represents Interest Objects
  * Copyright (C) 2013-2014 Regents of the University of California.
@@ -10082,7 +11106,7 @@ WireFormat.getDefaultWireFormat = function()
 // to avoid problems with cycles of require.
 var TlvWireFormat = require('./tlv-wire-format.js').TlvWireFormat;
 
-},{"./tlv-wire-format.js":39}],45:[function(require,module,exports){
+},{"./tlv-wire-format.js":42}],48:[function(require,module,exports){
 /**
  * This class represents an Interest Exclude.
  * Copyright (C) 2014 Regents of the University of California.
@@ -10335,7 +11359,7 @@ Exclude.prototype.getChangeCount = function()
   return this.changeCount;
 };
 
-},{"./encoding/binary-xml-decoder.js":29,"./encoding/binary-xml-encoder.js":30,"./encoding/data-utils.js":33,"./name.js":55,"./util/blob.js":77,"./util/ndn-protoco-id-tags.js":81}],46:[function(require,module,exports){
+},{"./encoding/binary-xml-decoder.js":32,"./encoding/binary-xml-encoder.js":33,"./encoding/data-utils.js":36,"./name.js":58,"./util/blob.js":80,"./util/ndn-protoco-id-tags.js":84}],49:[function(require,module,exports){
 /**
  * This class represents Face Instances
  * Copyright (C) 2013-2014 Regents of the University of California.
@@ -10462,7 +11486,7 @@ FaceInstance.prototype.getElementLabel = function()
 };
 
 
-},{"./publisher-public-key-digest.js":57,"./util/ndn-protoco-id-tags.js":81}],47:[function(require,module,exports){
+},{"./publisher-public-key-digest.js":60,"./util/ndn-protoco-id-tags.js":84}],50:[function(require,module,exports){
 (function (Buffer){
 /**
  * This class represents the top-level object for communicating with an NDN host.
@@ -11677,7 +12701,7 @@ NDN.OPENED = Face.OPENED;
 NDN.CLOSED = Face.CLOSED;
 
 }).call(this,require("buffer").Buffer)
-},{"./closure.js":27,"./data.js":28,"./encoding/binary-xml-decoder.js":29,"./encoding/binary-xml-encoder.js":30,"./encoding/binary-xml-wire-format.js":32,"./encoding/data-utils.js":33,"./encoding/tlv-wire-format.js":39,"./encoding/tlv/tlv-decoder.js":40,"./encoding/tlv/tlv.js":43,"./forwarding-entry.js":48,"./forwarding-flags.js":49,"./interest.js":50,"./key-locator.js":51,"./key.js":52,"./log.js":53,"./meta-info.js":54,"./name.js":55,"./security/key-manager.js":66,"./transport/tcp-transport.js":25,"./transport/transport.js":74,"./transport/unix-transport.js":75,"./util/ndn-protoco-id-tags.js":81,"buffer":3,"crypto":7,"fs":2}],48:[function(require,module,exports){
+},{"./closure.js":30,"./data.js":31,"./encoding/binary-xml-decoder.js":32,"./encoding/binary-xml-encoder.js":33,"./encoding/binary-xml-wire-format.js":35,"./encoding/data-utils.js":36,"./encoding/tlv-wire-format.js":42,"./encoding/tlv/tlv-decoder.js":43,"./encoding/tlv/tlv.js":46,"./forwarding-entry.js":51,"./forwarding-flags.js":52,"./interest.js":53,"./key-locator.js":54,"./key.js":55,"./log.js":56,"./meta-info.js":57,"./name.js":58,"./security/key-manager.js":69,"./transport/tcp-transport.js":28,"./transport/transport.js":77,"./transport/unix-transport.js":78,"./util/ndn-protoco-id-tags.js":84,"buffer":5,"crypto":9,"fs":1}],51:[function(require,module,exports){
 /**
  * This class represents Forwarding Entries
  * Copyright (C) 2013-2014 Regents of the University of California.
@@ -11782,7 +12806,7 @@ ForwardingEntry.prototype.to_ndnb = function(
 
 ForwardingEntry.prototype.getElementLabel = function() { return NDNProtocolDTags.ForwardingEntry; }
 
-},{"./name.js":55,"./publisher-public-key-digest.js":57,"./util/ndn-protoco-id-tags.js":81}],49:[function(require,module,exports){
+},{"./name.js":58,"./publisher-public-key-digest.js":60,"./util/ndn-protoco-id-tags.js":84}],52:[function(require,module,exports){
 /**
  * Copyright (C) 2013-2014 Regents of the University of California.
  * @author: Jeff Thompson <jefft0@remap.ucla.edu>
@@ -11964,7 +12988,7 @@ ForwardingFlags.prototype.setTap = function(value) { this.tap = value; };
  */
 ForwardingFlags.prototype.setCaptureOk = function(value) { this.captureOk = value; };
 
-},{"./forwarding-entry.js":48}],50:[function(require,module,exports){
+},{"./forwarding-entry.js":51}],53:[function(require,module,exports){
 (function (Buffer){
 /**
  * This class represents Interest Objects
@@ -12445,7 +13469,7 @@ Interest.prototype.decode = function(input, wireFormat)
 };
 
 }).call(this,require("buffer").Buffer)
-},{"./encoding/binary-xml-wire-format.js":32,"./encoding/wire-format.js":44,"./exclude.js":45,"./key-locator.js":51,"./name.js":55,"./publisher-public-key-digest.js":57,"./util/blob.js":77,"buffer":3}],51:[function(require,module,exports){
+},{"./encoding/binary-xml-wire-format.js":35,"./encoding/wire-format.js":47,"./exclude.js":48,"./key-locator.js":54,"./name.js":58,"./publisher-public-key-digest.js":60,"./util/blob.js":80,"buffer":5}],54:[function(require,module,exports){
 (function (Buffer){
 /**
  * This class represents an NDN KeyLocator object.
@@ -12761,7 +13785,7 @@ KeyName.prototype.getElementLabel = function() { return NDNProtocolDTags.KeyName
 
 
 }).call(this,require("buffer").Buffer)
-},{"./log.js":53,"./name.js":55,"./publisher-id.js":56,"./util/blob.js":77,"./util/ndn-protoco-id-tags.js":81,"buffer":3}],52:[function(require,module,exports){
+},{"./log.js":56,"./name.js":58,"./publisher-id.js":59,"./util/blob.js":80,"./util/ndn-protoco-id-tags.js":84,"buffer":5}],55:[function(require,module,exports){
 (function (Buffer){
 /**
  * This class represents Key Objects
@@ -12914,7 +13938,7 @@ Key.createFromPEM = function(obj)
 };
 
 }).call(this,require("buffer").Buffer)
-},{"./encoding/data-utils.js":33,"./log.js":53,"buffer":3,"crypto":7}],53:[function(require,module,exports){
+},{"./encoding/data-utils.js":36,"./log.js":56,"buffer":5,"crypto":9}],56:[function(require,module,exports){
 /**
  * Copyright (C) 2013-2014 Regents of the University of California.
  * @author: Jeff Thompson <jefft0@remap.ucla.edu>
@@ -12949,7 +13973,7 @@ exports.Log = Log;
  */
 Log.LOG = 0;
 
-},{}],54:[function(require,module,exports){
+},{}],57:[function(require,module,exports){
 (function (Buffer){
 /**
  * This class represents an NDN Data MetaInfo object.
@@ -13281,7 +14305,7 @@ SignedInfo.prototype = new MetaInfo(null, null, null, null, null, null, true);
 exports.SignedInfo = SignedInfo;
 
 }).call(this,require("buffer").Buffer)
-},{"./encoding/binary-xml-decoder.js":29,"./encoding/binary-xml-encoder.js":30,"./key-locator.js":51,"./log.js":53,"./name.js":55,"./publisher-public-key-digest.js":57,"./security/key-manager.js":66,"./util/blob.js":77,"./util/ndn-protoco-id-tags.js":81,"./util/ndn-time.js":82,"buffer":3}],55:[function(require,module,exports){
+},{"./encoding/binary-xml-decoder.js":32,"./encoding/binary-xml-encoder.js":33,"./key-locator.js":54,"./log.js":56,"./name.js":58,"./publisher-public-key-digest.js":60,"./security/key-manager.js":69,"./util/blob.js":80,"./util/ndn-protoco-id-tags.js":84,"./util/ndn-time.js":85,"buffer":5}],58:[function(require,module,exports){
 (function (Buffer){
 /**
  * This class represents a Name as an array of components where each is a byte array.
@@ -14053,7 +15077,7 @@ Name.prototype.getChangeCount = function()
 };
 
 }).call(this,require("buffer").Buffer)
-},{"./encoding/binary-xml-decoder.js":29,"./encoding/binary-xml-encoder.js":30,"./encoding/data-utils.js":33,"./log.js":53,"./util/blob.js":77,"./util/ndn-protoco-id-tags.js":81,"buffer":3}],56:[function(require,module,exports){
+},{"./encoding/binary-xml-decoder.js":32,"./encoding/binary-xml-encoder.js":33,"./encoding/data-utils.js":36,"./log.js":56,"./util/blob.js":80,"./util/ndn-protoco-id-tags.js":84,"buffer":5}],59:[function(require,module,exports){
 /**
  * This class represents Publisher and PublisherType Objects
  * Copyright (C) 2013-2014 Regents of the University of California.
@@ -14180,7 +15204,7 @@ PublisherID.prototype.getChangeCount = function()
   return this.changeCount;
 };
 
-},{"./encoding/decoding-exception.js":34,"./util/ndn-protoco-id-tags.js":81}],57:[function(require,module,exports){
+},{"./encoding/decoding-exception.js":37,"./util/ndn-protoco-id-tags.js":84}],60:[function(require,module,exports){
 /**
  * This class represents PublisherPublicKeyDigest Objects
  * Copyright (C) 2013-2014 Regents of the University of California.
@@ -14263,7 +15287,7 @@ PublisherPublicKeyDigest.prototype.getChangeCount = function()
   return this.changeCount;
 };
 
-},{"./log.js":53,"./util/ndn-protoco-id-tags.js":81}],58:[function(require,module,exports){
+},{"./log.js":56,"./util/ndn-protoco-id-tags.js":84}],61:[function(require,module,exports){
 /**
  * Copyright (C) 2014 Regents of the University of California.
  * @author: Jeff Thompson <jefft0@remap.ucla.edu>
@@ -14316,7 +15340,7 @@ IdentityCertificate.certificateNameToPublicKeyName = function(certificateName)
     (tmpName.getSubName(i + 1, tmpName.size() - i - 1));
 };
 
-},{}],59:[function(require,module,exports){
+},{}],62:[function(require,module,exports){
 /**
  * Copyright (C) 2014 Regents of the University of California.
  * @author: Jeff Thompson <jefft0@remap.ucla.edu>
@@ -14410,7 +15434,7 @@ PublicKey.prototype.getKeyDer = function()
   return this.keyDer;
 };
 
-},{"../security-exception.js":71,"../security-types.js":72}],60:[function(require,module,exports){
+},{"../security-exception.js":74,"../security-types.js":75}],63:[function(require,module,exports){
 (function (Buffer){
 /**
  * Copyright (C) 2014 Regents of the University of California.
@@ -14745,7 +15769,7 @@ IdentityManager.certificateNameToPublicKeyName = function(certificateName)
     (i + 1, tmpName.size() - i - 1));
 };
 }).call(this,require("buffer").Buffer)
-},{"../../data.js":28,"../../encoding/wire-format.js":44,"../../key-locator.js":51,"../../name.js":55,"../../sha256-with-rsa-signature.js":73,"../security-exception.js":71,"buffer":3}],61:[function(require,module,exports){
+},{"../../data.js":31,"../../encoding/wire-format.js":47,"../../key-locator.js":54,"../../name.js":58,"../../sha256-with-rsa-signature.js":76,"../security-exception.js":74,"buffer":5}],64:[function(require,module,exports){
 /**
  * Copyright (C) 2014 Regents of the University of California.
  * @author: Jeff Thompson <jefft0@remap.ucla.edu>
@@ -15014,7 +16038,7 @@ IdentityStorage.prototype.setDefaultCertificateNameForKey = function
   throw new Error("IdentityStorage.setDefaultCertificateNameForKey is not implemented");
 };
 
-},{"../../name.js":55,"../security-exception.js":71}],62:[function(require,module,exports){
+},{"../../name.js":58,"../security-exception.js":74}],65:[function(require,module,exports){
 /**
  * Copyright (C) 2014 Regents of the University of California.
  * @author: Jeff Thompson <jefft0@remap.ucla.edu>
@@ -15333,7 +16357,7 @@ MemoryIdentityStorage.prototype.setDefaultCertificateNameForKey = function
   throw new Error("MemoryIdentityStorage.setDefaultCertificateNameForKey is not implemented");
 };
 
-},{"../../data.js":28,"../../encoding/data-utils.js":33,"../../name.js":55,"../../util/blob.js":77,"../security-exception.js":71,"../security-types.js":72,"./identity-storage.js":61}],63:[function(require,module,exports){
+},{"../../data.js":31,"../../encoding/data-utils.js":36,"../../name.js":58,"../../util/blob.js":80,"../security-exception.js":74,"../security-types.js":75,"./identity-storage.js":64}],66:[function(require,module,exports){
 (function (Buffer){
 /**
  * Copyright (C) 2014 Regents of the University of California.
@@ -15502,7 +16526,7 @@ MemoryPrivateKeyStorage.prototype.doesKeyExist = function(keyName, keyClass)
 };
 
 }).call(this,require("buffer").Buffer)
-},{"../../encoding/data-utils.js":33,"../../util/blob.js":77,"../certificate/public-key.js":59,"../security-exception.js":71,"../security-types.js":72,"./private-key-storage.js":64,"buffer":3,"crypto":7}],64:[function(require,module,exports){
+},{"../../encoding/data-utils.js":36,"../../util/blob.js":80,"../certificate/public-key.js":62,"../security-exception.js":74,"../security-types.js":75,"./private-key-storage.js":67,"buffer":5,"crypto":9}],67:[function(require,module,exports){
 /**
  * Copyright (C) 2014 Regents of the University of California.
  * @author: Jeff Thompson <jefft0@remap.ucla.edu>
@@ -15623,7 +16647,7 @@ PrivateKeyStorage.prototype.doesKeyExist = function(keyName, keyClass)
   throw new Error("PrivateKeyStorage.doesKeyExist is not implemented");
 };
 
-},{}],65:[function(require,module,exports){
+},{}],68:[function(require,module,exports){
 /**
  * Copyright (C) 2014 Regents of the University of California.
  * @author: Jeff Thompson <jefft0@remap.ucla.edu>
@@ -16123,7 +17147,7 @@ KeyChain.prototype.onCertificateInterestTimeout = function
     onVerifyFailed(data);
 };
 
-},{"../data.js":28,"../encoding/tlv/tlv-encoder.js":41,"../encoding/tlv/tlv.js":43,"../encoding/wire-format.js":44,"../interest.js":50,"../key-locator.js":51,"../name.js":55,"./security-exception.js":71}],66:[function(require,module,exports){
+},{"../data.js":31,"../encoding/tlv/tlv-encoder.js":44,"../encoding/tlv/tlv.js":46,"../encoding/wire-format.js":47,"../interest.js":53,"../key-locator.js":54,"../name.js":58,"./security-exception.js":74}],69:[function(require,module,exports){
 /**
  * Copyright (C) 2013-2014 Regents of the University of California.
  * @author: Meki Cheraoui
@@ -16212,7 +17236,7 @@ KeyManager.prototype.getKey = function()
 var globalKeyManager = globalKeyManager || new KeyManager();
 exports.globalKeyManager = globalKeyManager;
 
-},{"../key.js":52}],67:[function(require,module,exports){
+},{"../key.js":55}],70:[function(require,module,exports){
 /**
  * Copyright (C) 2014 Regents of the University of California.
  * @author: Jeff Thompson <jefft0@remap.ucla.edu>
@@ -16321,7 +17345,7 @@ NoVerifyPolicyManager.prototype.inferSigningIdentity = function(dataName)
   return new Name();
 };
 
-},{"../../name.js":55,"./policy-manager.js":68}],68:[function(require,module,exports){
+},{"../../name.js":58,"./policy-manager.js":71}],71:[function(require,module,exports){
 /**
  * Copyright (C) 2014 Regents of the University of California.
  * @author: Jeff Thompson <jefft0@remap.ucla.edu>
@@ -16432,7 +17456,7 @@ PolicyManager.prototype.inferSigningIdentity = function(dataName)
   throw new Error("PolicyManager.inferSigningIdentity is not implemented");
 };
 
-},{}],69:[function(require,module,exports){
+},{}],72:[function(require,module,exports){
 /**
  * Copyright (C) 2014 Regents of the University of California.
  * @author: Jeff Thompson <jefft0@remap.ucla.edu>
@@ -16672,7 +17696,7 @@ SelfVerifyPolicyManager.verifySha256WithRsaSignature = function
   return verifier.verify(keyPem, signatureBytes);
 };
 
-},{"../../data.js":28,"../../encoding/data-utils.js":33,"../../encoding/wire-format.js":44,"../../key-locator.js":51,"../../name.js":55,"../certificate/identity-certificate.js":58,"../security-exception.js":71,"./policy-manager.js":68,"crypto":7}],70:[function(require,module,exports){
+},{"../../data.js":31,"../../encoding/data-utils.js":36,"../../encoding/wire-format.js":47,"../../key-locator.js":54,"../../name.js":58,"../certificate/identity-certificate.js":61,"../security-exception.js":74,"./policy-manager.js":71,"crypto":9}],73:[function(require,module,exports){
 /**
  * Copyright (C) 2014 Regents of the University of California.
  * @author: Jeff Thompson <jefft0@remap.ucla.edu>
@@ -16720,7 +17744,7 @@ var ValidationRequest = function ValidationRequest
 
 exports.ValidationRequest = ValidationRequest;
 
-},{}],71:[function(require,module,exports){
+},{}],74:[function(require,module,exports){
 /**
  * Copyright (C) 2014 Regents of the University of California.
  * @author: Jeff Thompson <jefft0@remap.ucla.edu>
@@ -16759,7 +17783,7 @@ SecurityException.prototype.name = "SecurityException";
 
 exports.SecurityException = SecurityException;
 
-},{}],72:[function(require,module,exports){
+},{}],75:[function(require,module,exports){
 /**
  * Copyright (C) 2014 Regents of the University of California.
  * @author: Jeff Thompson <jefft0@remap.ucla.edu>
@@ -16834,7 +17858,7 @@ EncryptMode.DEFAULT = 1;
 EncryptMode.CFB_AES = 2;
 // EncryptMode.CBC_AES
 
-},{}],73:[function(require,module,exports){
+},{}],76:[function(require,module,exports){
 (function (Buffer){
 /**
  * This class represents an NDN Data Signature object.
@@ -17041,7 +18065,7 @@ Signature.prototype = new Sha256WithRsaSignature();
 exports.Signature = Signature;
 
 }).call(this,require("buffer").Buffer)
-},{"./encoding/binary-xml-decoder.js":29,"./encoding/binary-xml-encoder.js":30,"./key-locator.js":51,"./log.js":53,"./util/blob.js":77,"./util/ndn-protoco-id-tags.js":81,"buffer":3}],74:[function(require,module,exports){
+},{"./encoding/binary-xml-decoder.js":32,"./encoding/binary-xml-encoder.js":33,"./key-locator.js":54,"./log.js":56,"./util/blob.js":80,"./util/ndn-protoco-id-tags.js":84,"buffer":5}],77:[function(require,module,exports){
 /**
  * Copyright (C) 2014 Regents of the University of California.
  * @author: Jeff Thompson <jefft0@remap.ucla.edu>
@@ -17077,7 +18101,7 @@ exports.Transport = Transport;
 Transport.ConnectionInfo = function TransportConnectionInfo()
 {
 };
-},{}],75:[function(require,module,exports){
+},{}],78:[function(require,module,exports){
 (function (Buffer){
 /**
  * Copyright (C) 2014 Regents of the University of California.
@@ -17245,7 +18269,7 @@ UnixTransport.prototype.close = function()
 };
 
 }).call(this,require("buffer").Buffer)
-},{"../encoding/element-reader.js":35,"../log.js":53,"./transport.js":74,"buffer":3,"net":2}],76:[function(require,module,exports){
+},{"../encoding/element-reader.js":38,"../log.js":56,"./transport.js":77,"buffer":5,"net":1}],79:[function(require,module,exports){
 (function (Buffer){
 /**
  * Copyright (C) 2013-2014 Regents of the University of California.
@@ -17456,7 +18480,7 @@ WebSocketTransport.prototype.close = function()
 
 
 }).call(this,require("buffer").Buffer)
-},{"../encoding/element-reader.js":35,"../log.js":53,"./transport.js":74,"buffer":3}],77:[function(require,module,exports){
+},{"../encoding/element-reader.js":38,"../log.js":56,"./transport.js":77,"buffer":5}],80:[function(require,module,exports){
 (function (Buffer){
 /**
  * Copyright (C) 2013 Regents of the University of California.
@@ -17596,7 +18620,7 @@ Blob.prototype.equals = function(other)
   }
 };
 }).call(this,require("buffer").Buffer)
-},{"buffer":3}],78:[function(require,module,exports){
+},{"buffer":5}],81:[function(require,module,exports){
 (function (Buffer){
 /**
  * Encapsulate a Buffer and support dynamic reallocation.
@@ -17725,7 +18749,7 @@ DynamicBuffer.prototype.slice = function(begin, end)
 };
 
 }).call(this,require("buffer").Buffer)
-},{"buffer":3}],79:[function(require,module,exports){
+},{"buffer":5}],82:[function(require,module,exports){
 /**
  * Copyright (C) 2014 Regents of the University of California.
  * @author: Jeff Thompson <jefft0@remap.ucla.edu>
@@ -17995,7 +19019,7 @@ MemoryContentCache.StaleTimeContent.prototype.isStale = function(nowMilliseconds
   return this.staleTimeMilliseconds <= nowMilliseconds;
 };
 
-},{"../name.js":55}],80:[function(require,module,exports){
+},{"../name.js":58}],83:[function(require,module,exports){
 (function (Buffer){
 /**
  * Copyright (C) 2013-2014 Regents of the University of California.
@@ -18150,7 +19174,7 @@ NameEnumeration.endsWithSegmentNumber = function(name) {
 };
 
 }).call(this,require("buffer").Buffer)
-},{"../encoding/binary-xml-decoder.js":29,"../encoding/data-utils.js":33,"../name.js":55,"./ndn-protoco-id-tags.js":81,"buffer":3}],81:[function(require,module,exports){
+},{"../encoding/binary-xml-decoder.js":32,"../encoding/data-utils.js":36,"../name.js":58,"./ndn-protoco-id-tags.js":84,"buffer":5}],84:[function(require,module,exports){
 /**
  * This class contains all NDNx tags
  * Copyright (C) 2013-2014 Regents of the University of California.
@@ -18321,7 +19345,7 @@ var NDNProtocolDTagsStrings = [
 
 exports.NDNProtocolDTagsStrings = NDNProtocolDTagsStrings;
 
-},{}],82:[function(require,module,exports){
+},{}],85:[function(require,module,exports){
 /**
  * This class represents NDNTime Objects
  * Copyright (C) 2013-2014 Regents of the University of California.
@@ -18367,7 +19391,7 @@ NDNTime.prototype.getJavascriptDate = function()
   return d
 };
 
-},{"../log.js":53}],83:[function(require,module,exports){
+},{"../log.js":56}],86:[function(require,module,exports){
 /**
  * Copyright (C) 2013 Regents of the University of California.
  * @author: Jeff Thompson <jefft0@remap.ucla.edu>
@@ -18477,7 +19501,7 @@ SignedBlob.prototype.getSignedPortionEndOffset = function()
   return this.signedPortionEndOffset;
 };
 
-},{"./blob.js":77}],84:[function(require,module,exports){
+},{"./blob.js":80}],87:[function(require,module,exports){
 (function(){
     
     // Copyright (c) 2005  Tom Wu
@@ -19704,7 +20728,7 @@ SignedBlob.prototype.getSignedPortionEndOffset = function()
     }
     
 }).call(this);
-},{}],85:[function(require,module,exports){
+},{}],88:[function(require,module,exports){
 /*
  Copyright 2013 Daniel Wirtz <dcode@dcode.io>
 
@@ -23715,7 +24739,7 @@ SignedBlob.prototype.getSignedPortionEndOffset = function()
 
 })(this);
 
-},{"bytebuffer":86,"fs":2,"path":13}],86:[function(require,module,exports){
+},{"bytebuffer":89,"fs":1,"path":15}],89:[function(require,module,exports){
 /*
  ByteBuffer.js (c) 2013-2014 Daniel Wirtz <dcode@dcode.io>
  This version of ByteBuffer.js uses an ArrayBuffer (AB) as its backing buffer and is compatible with modern browsers.
@@ -23805,7 +24829,7 @@ a.length?a.charCodeAt(b++):null}};k.c=function(){var a=[],b=[];return function()
 0!==b%1)throw new TypeError("Illegal end: Not an integer");b>>>=0;if(0>a||a>b||b>this.buffer.byteLength)throw new RangeError("Illegal range: 0 <= "+a+" <= "+b+" <= "+this.buffer.byteLength);}var c=this,d;try{k.d(function(){return a<b?c.view.getUint8(a++):null},d=k.c())}catch(h){if(a!==b)throw new RangeError("Illegal range: Truncated data, "+a+" != "+b);}return d()};d.fromUTF8=function(a,b,c){if(!c&&"string"!==typeof a)throw new TypeError("Illegal str: Not a string");var e=new d(k.b(k.a(a),!0)[1],
 b,c),h=0;k.e(k.a(a),function(a){e.view.setUint8(h++,a)});e.limit=h;return e};return d}"undefined"!=typeof module&&module.exports?module.exports=s(require("long")):"undefined"!==typeof define&&define.amd?define("ByteBuffer",["Math/Long"],function(l){return s(l)}):(r.dcodeIO||(r.dcodeIO={}),r.dcodeIO.ByteBuffer=s(r.dcodeIO.Long))})(this);
 
-},{"long":88}],87:[function(require,module,exports){
+},{"long":91}],90:[function(require,module,exports){
 /*
  Copyright 2013 Daniel Wirtz <dcode@dcode.io>
  Copyright 2009 The Closure Library Authors. All Rights Reserved.
@@ -24757,7 +25781,7 @@ b,c),h=0;k.e(k.a(a),function(a){e.view.setUint8(h++,a)});e.limit=h;return e};ret
 
 })(this);
 
-},{}],88:[function(require,module,exports){
+},{}],91:[function(require,module,exports){
 /*
  Copyright 2013 Daniel Wirtz <dcode@dcode.io>
  Copyright 2009 The Closure Library Authors. All Rights Reserved.
@@ -24777,7 +25801,7 @@ b,c),h=0;k.e(k.a(a),function(a){e.view.setUint8(h++,a)});e.limit=h;return e};ret
 
 module.exports = require("./dist/Long.js");
 
-},{"./dist/Long.js":87}],89:[function(require,module,exports){
+},{"./dist/Long.js":90}],92:[function(require,module,exports){
 var debug = false;
 
 function pubKeyMatch (ar1, ar2){
@@ -24977,7 +26001,7 @@ ContentStore.prototype.insert = function(element, data){
 
 module.exports = ContentStore;
 
-},{}],90:[function(require,module,exports){
+},{}],93:[function(require,module,exports){
 var binarySearch = require("./../Utility/binarySearch.js")
   , ndn;
 
@@ -25153,7 +26177,7 @@ FIB.Entry = FibEntry;
 
 module.exports = FIB;
 
-},{"./../Utility/binarySearch.js":97}],91:[function(require,module,exports){
+},{"./../Utility/binarySearch.js":100}],94:[function(require,module,exports){
 var ndn
   , Face
   , ndn = require("ndn-lib")
@@ -25265,7 +26289,7 @@ Interfaces.prototype.dispatch = function(element, faceFlag, callback){
 
 module.exports = Interfaces;
 
-},{"ndn-lib":24,"ndn-lib/js/encoding/tlv/tlv-decoder.js":40,"ndn-lib/js/encoding/tlv/tlv.js":43}],92:[function(require,module,exports){
+},{"ndn-lib":27,"ndn-lib/js/encoding/tlv/tlv-decoder.js":43,"ndn-lib/js/encoding/tlv/tlv.js":46}],95:[function(require,module,exports){
 var NameTreeNode = require("./NameTreeNode.js")
   , binaryIndexOf = require("./../Utility/binarySearch.js")
   , ndn
@@ -25440,7 +26464,7 @@ NameTree.prototype.findAllMatches = function(prefix, selector){
 
 module.exports = NameTree;
 
-},{"./../Utility/binarySearch.js":97,"./../Utility/debug.js":98,"./NameTreeNode.js":93}],93:[function(require,module,exports){
+},{"./../Utility/binarySearch.js":100,"./../Utility/debug.js":101,"./NameTreeNode.js":96}],96:[function(require,module,exports){
 var binarySearch = require("./../Utility/binarySearch.js")
   , ndn
   , debug = require("./../Utility/debug.js");
@@ -25510,7 +26534,7 @@ NameTreeNode.prototype.removeChild = function(child){
 
 module.exports = NameTreeNode;
 
-},{"./../Utility/binarySearch.js":97,"./../Utility/debug.js":98}],94:[function(require,module,exports){
+},{"./../Utility/binarySearch.js":100,"./../Utility/debug.js":101}],97:[function(require,module,exports){
 var binarySearch = require("./../Utility/binarySearch.js")
   , ndn;
 
@@ -25665,11 +26689,11 @@ PIT.prototype.lookup = function(data, name, matches, faceFlag){
 
 module.exports = PIT;
 
-},{"./../Utility/binarySearch.js":97}],95:[function(require,module,exports){
+},{"./../Utility/binarySearch.js":100}],98:[function(require,module,exports){
 exports.MessageChannel = require("./browser/MessageChannel.js");
 module.exports = exports;
 
-},{"./browser/MessageChannel.js":96}],96:[function(require,module,exports){
+},{"./browser/MessageChannel.js":99}],99:[function(require,module,exports){
 (function (Buffer){
 var ElementReader = require("ndn-lib/js/encoding/element-reader.js").ElementReader;
 var Transport = require("ndn-lib/js/transport/transport.js").Transport;
@@ -25747,7 +26771,7 @@ MessageChannelTransport.prototype.send = function(element)
 module.exports = MessageChannelTransport;
 
 }).call(this,require("buffer").Buffer)
-},{"buffer":3,"ndn-lib/js/encoding/element-reader.js":35,"ndn-lib/js/transport/transport.js":74}],97:[function(require,module,exports){
+},{"buffer":5,"ndn-lib/js/encoding/element-reader.js":38,"ndn-lib/js/transport/transport.js":77}],100:[function(require,module,exports){
   /**
  * Modified from https://gist.github.com/Wolfy87/5734530
  *
@@ -25836,669 +26860,13 @@ var binaryIndexOfPrefix = function(array, searchElement, prop) {
 
 module.exports = binaryIndexOfPrefix
 
-},{"./debug.js":98}],98:[function(require,module,exports){
+},{"./debug.js":101}],101:[function(require,module,exports){
 module.exports = {
   NameTree : false
   ,binaryIndexOf : true
 }
 
-},{}],99:[function(require,module,exports){
-module.exports=require(29)
-},{"../log.js":107,"../util/ndn-protoco-id-tags.js":111,"../util/ndn-time.js":112,"./data-utils.js":101,"./decoding-exception.js":102,"buffer":3}],100:[function(require,module,exports){
-module.exports=require(31)
-},{"../util/dynamic-buffer.js":110,"./binary-xml-decoder.js":99}],101:[function(require,module,exports){
-module.exports=require(33)
-},{"buffer":3}],102:[function(require,module,exports){
-module.exports=require(34)
-},{}],103:[function(require,module,exports){
-module.exports=require(35)
-},{"../log.js":107,"./binary-xml-structure-decoder.js":100,"./data-utils.js":101,"./tlv/tlv-structure-decoder.js":105,"./tlv/tlv.js":106}],104:[function(require,module,exports){
-module.exports=require(40)
-},{"../decoding-exception.js":102}],105:[function(require,module,exports){
-module.exports=require(42)
-},{"./tlv-decoder.js":104,"buffer":3}],106:[function(require,module,exports){
-module.exports=require(43)
-},{}],107:[function(require,module,exports){
-module.exports=require(53)
-},{}],108:[function(require,module,exports){
-module.exports=require(74)
-},{}],109:[function(require,module,exports){
-module.exports=require(75)
-},{"../encoding/element-reader.js":103,"../log.js":107,"./transport.js":108,"buffer":3,"net":2}],110:[function(require,module,exports){
-module.exports=require(78)
-},{"buffer":3}],111:[function(require,module,exports){
-module.exports=require(81)
-},{}],112:[function(require,module,exports){
-module.exports=require(82)
-},{"../log.js":107}],113:[function(require,module,exports){
-/*
-var io = {}
-  , ndn = require("ndn-lib")
-  , utils = require('ndn-utils')
-  , messageChannelTransport = require("ndn-message-channel-transport")
-  , self
-
-/*
-io.initBuffer = []
-var keyManager = function() {
-
-  this.certificate = null
-  this.publicKey = null
-  this.privateKey = null
-
-  this.key = null;
-};
-keyManager.prototype.getKey = function()
-{
-  if (this.key === null) {
-    this.key = new ndn.Key();
-    this.key.fromPemString(this.publicKey, this.privateKey);
-  }
-
-  return this.key;
-}
-
-ndn.globalKeyMangager =  new keyManager()
-
-io.remoteTangle = function(){}
-
-io.useNDN = function(n){
-  ndn = n
-}
-
-io.initFace = function(transportClass, portStreamOrWebSocket, ack){
-  console.log(transportClass, portStreamOrWebSocket, ack)
-  if ((typeof transportClass == "string") && (transportClass == "websocket" || "tcp")){
-    io.face = new ndn.Face({host:portStreamOrWebSocket.host, port: portStreamOrWebSocket.port})
-  } else {
-    console.log("local local")
-    io.face = new ndn.Face({host:1337, port:1337, getTransport:function(){return new messageChannelTransport.transport(portStreamOrWebSocket)}})
-  }
-  io.face.transport.connect(io.face, function(){
-    console.log("io face connected")
-    if (io.initBuffer.length > 0){
-      for (var i = 0; i < io.initBuffer.length; i++){
-        var action = io.initBuffer[i]
-        if (action.type = "expressInterest")
-          io.face.expressInterest(action.interest, action.onData, action.onTimeout)
-      }
-    }
-    ack()
-  })
-}
-
-io.telehashTangle = function(opts){
-
-  io.initFace(null, opts.hashname, function(){})
-
-}
-
-io.remoteTangle = function(opts, cb){
-  if (opts.transport == 'telehash'){
-    io.telehashTangle(opts)
-  } else {
-    io.initFace(opts.transport, opts, cb)
-  }
-}
-
-io.importPKI = function(cert, priPem, pubPem) {
-  ndn.globalKeyManager.certificate = cert
-  ndn.globalKeyManager.publicKey = pubPem
-  ndn.globalKeyManager.privateKey = priPem
-}
-
-io.getHashname = function() {
-  return ndn.globalKeyManager.getKey().publicKeyDigest.toString('hex');
-}
-
-io.makeFace = function(opts, responder) {
-
-var d, enc, inst, name, onData, onInterest, onTimeout, param;
-
-  console.log("make face'");
-
-  name = new ndn.Name("localhost/nfd/faces/create");
-
-  d = new ndn.Data(new ndn.Name(''), new ndn.SignedInfo(), JSON.stringify(opts));
-
-  d.signedInfo.setFields();
-
-  d.sign();
-
-  enc = d.wireEncode();
-
-  name.append(enc.buffer);
-
-  inst = new ndn.Interest(name);
-
-  onData = function(interest, data){
-    console.log("makeFace got Response", data)
-    var response = JSON.parse(data.content.toString())
-    opts.faceID = response.faceID
-    responder(opts, true)
-  }
-
-  onTimeout = function(interest) {
-    console.log("makeFace timeout", opts.host || opts.hashname)
-    responder(opts, false)
-  }
-  io.face.expressInterest(inst, onData, onTimeout);
-}
-io.addNextHop = function(opts, cb) {
-  var d, enc, inst, name, onData, onInterest, onTimeout, param;
-
-  console.log("registering own face'");
-
-  name = new ndn.Name("localhost/nfd/fib/add-nexthop");
-
-  param = {
-    uri: opts.uri
-  };
-  if (opts.faceID) {
-    param.faceID = opts.faceID
-  }
-
-
-  console.log("nexthop uri:", param.uri);
-
-  d = new ndn.Data(new ndn.Name(''), new ndn.SignedInfo(), JSON.stringify(param));
-
-  d.signedInfo.setFields();
-
-  d.sign();
-
-  enc = d.wireEncode();
-
-  name.append(enc.buffer);
-
-  inst = new ndn.Interest(name);
-
-  onData = function(interest, data, something) {
-    var registeredPrefix;
-    console.log("got data from io.addNextHop", data)
-    if (JSON.parse(data.content.toString()).success === true)  {
-      cb(opts, true)
-    }
-  };
-
-  onTimeout = function(name, interest, something) {
-    return console.log('timeout for add nexthop', name, interest, something);
-    cb(opts, false)
-  };
-
-  io.face.expressInterest(inst, onData, onTimeout);
-
-}
-
-io.mirror = function(uri){
-    var onTimeout = function (interest) {
-      console.log("timeout", interest);
-    };
-    var onData = function(data) {
-      console.log(data)
-    };
-    //console.log(name.toUri())
-    var command = new ndn.Name(uri)
-    command.append(new ndn.Name.Component([0xc1, 0x2e, 0x52, 0x2e, 0x73, 0x77]))
-    var interest = new ndn.Interest(command)
-    interest.interestLifetime = 4000
-    utils.setNonce(interest)
-    //console.log("did this time correctly?", command.toUri())
-    io.face.expressInterest(interest, onData, onTimeout);
-}
-
-io.makeEncoded = function(data, responder) {
-  var d = new ndn.Data(new ndn.Name(data.uri), new ndn.SignedInfo(), data.bytes)
-  d.signedInfo.setFields()
-  d.sign()
-  var encoded = d.encode()
-  responder(data.id, encoded)
-
-}
-io.fetch = function(opts, responder) {
-  console.log(opts)
-  var returnName;
-  var interestsInFlight = 0;
-  var windowSize = 4;
-  var t0 = new Date().getTime()
-  var segmentRequested = [];
-  var whenNotGottenTriggered = false
-
-  var name = new ndn.Name(opts.uri)
-
-
-
-  var contentArray = [];
-
-  var recievedSegments = 0;
-
-  segmentRequested[interestsInFlight] = 0;
-
-  var masterInterest = new ndn.Interest(name)
-
-
-  if (opts.selectors != undefined) {
-    if (opts.selectors.publisherPublicKeyDigest != undefined) {
-      masterInterest.publisherPublicKeyDigest = new ndn.PublisherPublicKeyDigest(opts.selectors.publisherPublicKeyDigest);
-    }
-    if (opts.selectors.exclude != undefined) {
-      var comps = []
-      for (var i = 0; i < opts.selectors.exclude.length; i++) {
-        comps[i] = new ndn.Name.Component(opts.selectors.exclude[i])
-      }
-      masterInterest.exclude = new ndn.Exclude(comps)
-    }
-    if (opts.selectors.interestLifetime != undefined) {
-      masterInterest.setInterestLifetimeMilliseconds(opts.selectors.interestLifetime)
-    } else {
-      masterInterest.setInterestLifetimeMilliseconds(300);
-    }
-    if (opts.selectors.child == "right")
-      masterInterest.setChildSelector(1)
-    else if (opts.selectors.child == "left")
-      masterInterest.setChildSelector(0)
-  } else {
-    masterInterest.setInterestLifetimeMilliseconds(250);
-  }
-
-  var interest = new ndn.Interest(masterInterest);
-
-  //console.log(interest.interestLifetime)
-
-  var firstCo;
-  var onData = function(interest, co) {
-    interestsInFlight--;
-    //console.log(interest)
-
-    var segmentNumber = utils.getSegmentInteger(co.name)
-    if (segmentNumber == 0) {
-      firstCo = co
-      returnName = firstCo.name.getPrefix(-1)
-    }
-    var finalSegmentNumber = 1 + ndn.DataUtils.bigEndianToUnsignedInt(co.signedInfo.finalBlockID);
-    //console.log(segmentNumber, co.name.toUri());
-    if (contentArray[segmentNumber] == undefined) {
-      if (opts.type == 'object') {
-        contentArray[segmentNumber] = (ndn.DataUtils.toString(co.content));
-      } else if (opts.type == 'blob' || 'file'){
-        contentArray[segmentNumber] = co.content;
-      }
-
-      recievedSegments++;
-    }
-
-    //console.log(recievedSegments, finalSegmentNumber, interestsInFlight);
-    if (recievedSegments == finalSegmentNumber) {
-        //console.log('got all segment', contentArray.length);
-        var t1 = new Date().getTime()
-        console.log(t1 - t0)
-        if (opts.type == "object") {
-          assembleObject(name);
-        } else if (opts.type == "blob" || "file") {
-          assembleBlob(name)
-        } else {
-          assembleBlob(name, opts.type)
-        }
-
-    } else {
-      if (interestsInFlight < windowSize) {
-        for (var i = 0; i < finalSegmentNumber; i++) {
-          if ((contentArray[i] == undefined) && (segmentRequested[i] == undefined)) {
-            var newInterest = new ndn.Interest(masterInterest)
-            newInterest.name.appendSegment(i)
-            io.face.expressInterest(newInterest, onData, onTimeout)
-            segmentRequested[i] = 0;
-            interestsInFlight++
-            if (interestsInFlight == windowSize) {
-              //stop iterating
-              i = finalSegmentNumber;
-            };
-          };
-        };
-      };
-    };
-  };
-  var onTimeout = function(interest) {
-    var seg = utils.getSegmentInteger(interest.name)
-    if (segmentRequested[seg] < 4) {
-      segmentRequested[seg]++
-      var newInterest = new ndn.Interest(interest);
-      console.log(masterInterest.interestLifetime)
-      newInterest.setInterestLifetimeMilliseconds(masterInterest.interestLifetime)
-      io.face.expressInterest(newInterest, onData, onTimeout)
-
-    } else if ((whenNotGottenTriggered == false)) {
-      whenNotGottenTriggered = true;
-      console.log(segmentRequested)
-      responder(opts.uri, false)
-    }
-  };
-
-  var assembleBlob = function(name, mime) {
-    var mime = mime
-    var blob = new Blob(contentArray, {type: mime})
-    responder(opts.uri, true, blob, firstCo.name.getPrefix(-1).toUri())
-  };
-
-  var assembleObject = function(name) {
-    var string = "";
-    for (var i = 0; i < contentArray.length; i++) {
-      string += contentArray[i];
-    };
-    var obj = JSON.parse(string);
-    responder(opts.uri, true, obj, firstCo.name.getPrefix(-1).toUri())
-  };
-
-
-
-  //console.log(interest.name.toUri())
-  if (io.face == undefined){
-    io.initBuffer.push({type: "expressInterest", interest: interest, onData: onData, onTimeout: onTimeout})
-  } else {
-    io.face.expressInterest(interest, onData, onTimeout);
-  }
-
-
-};
-
-io.publishFile = require("./node/publishFile.js")
-
-io.chunkObject = function(opts) {
-  var ndnArray = [];
-  //console.log(name)
-  if (opts.type == 'object') {
-    var string = JSON.stringify(opts.thing);
-  }
-  var name = new ndn.Name(opts.uri)
-  if (opts.version != undefined) {
-    name.appendVersion(Date.now())
-  }
-  var stringArray = string.match(/.{1,1300}/g);
-  var segmentNames = [];
-  for (i = 0; i < stringArray.length; i++) {
-    segmentNames[i] = new ndn.Name(name).appendSegment(i)
-    var co = new ndn.Data(segmentNames[i], new ndn.SignedInfo(), stringArray[i]);
-    co.signedInfo.setFields()
-    co.signedInfo.setFinalBlockID(new ndn.Name.Component(utils.initSegment(stringArray.length - 1)))
-
-    if (opts.freshness != undefined) {
-      co.signedInfo.setFreshnessPeriod(opts.freshness)
-    }
-    co.sign()
-    ndnArray[i] = co.wireEncode()
-  };
-
-  return {array:ndnArray, name: name};
-
-};
-
-
-io.ping = function(opts){
-  var interest = new ndn.Interest(new ndn.Name(opts.uri))
-  io.face.expressInterest(interest, function(){}, function(){})
-}
-
-
-io.publishObject = function(opts, responder) {
-  var returns = io.chunkObject(opts)
-  var name = returns.name
-  var ndnArray = returns.array
-
-  var onInterest = function(prefix, interest, transport) {
-    var requestedSegment = utils.getSegmentInteger(interest.name)
-    console.log("got object interest!!!!", ndnArray[requestedSegment])
-    transport.send(ndnArray[requestedSegment].buffer)
-  };
-  var prefix = name
-
-  function sendWriteCommand() {
-    var onTimeout = function (interest) {
-      console.log("timeout", interest.toUri());
-      responder(opts.uri, false)
-    };
-    var onData = function(interest, data) {
-      console.log("got data in writecommand interest " + interest.name.toUri())
-      if (data.content.toString() == "content stored"){
-        responder(opts.uri, true)
-      }
-    };
-    var closure = new ndn.Face.CallbackClosure(null, null, onInterest, prefix, io.face.transport);
-    ndn.Face.registeredPrefixTable.push(new RegisteredPrefix(prefix, closure));
-    console.log("prefix!!!!!!!!!!!!!!!!",prefix.toUri())
-    var command = (new ndn.Name(name)).getPrefix(-2).append(new ndn.Name.Component([0xc1, 0x2e, 0x52, 0x2e, 0x73, 0x77])).append(name.getSubName(name.size() - 2));
-    console.log(command)
-    var interest = new ndn.Interest(command)
-    console.log(interest)
-    interest.setInterestLifetimeMilliseconds(1000)
-    console.log("did this time correctly?" + interest.name.toUri())
-    io.face.expressInterest(interest, onData, onTimeout);
-
-  };
-  setTimeout(sendWriteCommand, 0)
-};
-
-io.addListener = function(opts, responder){
-  var prefix = new ndn.Name(opts.uri)
-
-  function onInterest(prefix, interest, transport){
-    responder(opts, interest.name.toUri())
-  }
-  function cb(opts, bool){
-    if (bool == false)
-      responder(opts, false)
-    else {
-      var closure = new ndn.Face.CallbackClosure(null, null, onInterest, prefix, io.face.transport);
-      ndn.Face.registeredPrefixTable.push(new RegisteredPrefix(prefix, closure));
-    }
-  }
-  io.addNextHop(opts, cb)
-}
-
-io.publish = function (opts, responder) {
-  console.log(JSON.stringify(opts))
-  function afterNextHopAdded(){
-    if (opts.type== "object") {
-      io.publishObject(opts, responder)
-    } else if (opts.type == "file" || "blob" ) {
-      io.publishFile(opts, responder, ndn, io)
-    }
-  }
-  io.addNextHop(opts, afterNextHopAdded)
-
-}
-
-function cb() {
-  var keyName = new ndn.Name('/%C1.M.S.localhost/%C1.M.SRV/ndnd/KEY')
-  var inst = new ndn.Interest(keyName)
-
-}
-var RegisteredPrefix = function RegisteredPrefix(prefix, closure)
-{
-  this.prefix = prefix;        // String
-  this.closure = closure;  // Closure
-};
-
-*/
-var contrib = require("ndn-contrib")
-  , Interfaces = contrib.Interfaces
-  , NameTree = contrib.NameTree
-  , PIT = contrib.PIT
-  , ContentStore = contrib.ContentStore
-  , Publisher = require("./Publisher.js")
-  , FIB = contrib.FIB
-  , ndn = contrib.ndn;
-
-
-/**
- *@constructor
- *@param {Transport} transportClass a transport class
- *@param {Object} connectionParameters the necessary connection info for the given class
- *@return {io}
- */
-function IO (transportClass, connectionParameters, contentStore){
-  this.interfaces = new Interfaces(this);
-  this.interfaces.installTransport(transportClass);
-  this.interfaces.newFace(transportClass.prototype.name, connectionParameters);
-  this.nameTree = (contentStore) ? contentStore.nameTree : new NameTree();
-  this.PIT = new PIT(this.nameTree);
-  this.FIB = new FIB(this.nameTree);
-  this.contentStore = contentStore || new ContentStore(this.nameTree);
-  this.ndn = ndn;
-  return this;
-}
-
-
-IO.localTransport = require("ndn-lib/js/transport/unix-transport.js");
-
-/** Publish a file, json object or string
- *@param {Buffer|Blob|File|FilePath|JSON|String} toPublish the thing you want to publish
- *@param {String|ndn.Name} name the name to publish the data under (excluding segment)
- */
-IO.prototype.publish = function(toPublish, name, freshnessMilliseconds){
-  this.publisher = this.publisher || new Publisher(this);
-
-  return this.publisher.setToPublish(toPublish)
-             .setName(name)
-             .setFreshnessPeriod(freshnessMilliseconds)
-             .publish(this.announcer);
-};
-
-/** settable announce function. Rather than enforce a handshake naming convention/protocol
- * it is up to application developer convention to negotiate storage request handshakes.
- * This function is called within {IO.publish} after the data is in the contentStore
- *@param {Object} firstData the ndn.Data object of the first segment data packet
- */
-IO.prototype.announcer = function(firstData){};
-
-/** set the announcer function
-  *@param {function} announcer
-  *@returns {this} this for chaining
-  */
-IO.prototype.setAnnouncer = function(announcer){
-  this.announcer = announcer;
-  return this;
-};
-
-/** create an IPC face and a forwarding entry to send interest packets to a listener in the main thread
- *@param {String} prefix the uri of the prefix to listen on
- *@param {Class} connectionParameters to use with IO.localTransport (unix in Node, MessageChannel in browser)
- *@returns {this} this for chaining
- */
-IO.prototype.addListener = function(prefix, connectionParameters){
-
-  this.FIB.addEntry(prefix, [{
-    faceID: this.Interfaces.newFace(IO.LocalTransport, connectionParameters)
-  }]);
-};
-
-/** handler for incoming interests
- *@param {Buffer} element the raw interest packet
- *@param {number} faceID the integer faceID of the receiving face
- */
-IO.prototype.handleInterest = function(element, faceID){
-  var interest = new ndn.Interest();
-  interest.wireDecode(element);
-  this.contentStore.check(interest, function(result){
-    if (result){
-      this.interfaces.dispatch(result, faceID);
-    } else {
-      var dispatchFlag = this.FIB.findAllNextHops(interest.name.toUri());
-      if (dispatchFlag !== 0){
-        this.interfaces.dispatch(element, dispatchFlag);
-      }
-    }
-  });
-};
-
-/**handler for incoming data
- *@param {Buffer} element the raw data packet
- *@param {number} faceID the integer faceID of the receiving face
- */
-IO.prototype.handleData = function(element, faceID){
-  var data = new ndn.Data();
-  data.wireDecode(element);
-  var results = this.PIT.lookup(data);
-  for (var i = 0; i < results.pitEntries.length; i++){
-    results.pitEntries[i].callback(element, data, data.signedInfo.finalBlockID);
-  }
-};
-
-/** fetch all segments of any data, excecuting the callback with each packet
- *@param {Interest} firstSegmentInterest the interest for the first segment of a data item
- *@param {function} onEachData function to call with each incoming data packet, recieves the raw packet, the ndn.Data object, and the finalBlockID of the item
- *@param {function} onTimeout function to call if the entire object can't be retrieved, passed the firstSegmentInterest as the only argument
- */
-IO.prototype.fetchAllSegments = function(firstSegmentInterest, onEachData, onTimeout){
-  var interestsInFlight = 0
-    , windowSize = 4
-    , masterInterest = new ndn.Interest(firstSegmentInterest.name.getPrefix(-1), firstSegmentInterest)
-    , finalSegmentNumber
-    , interest = new ndn.Interest(masterInterest)
-    , timeoutTriggered = false
-    , segmentRequested = []
-    , Self = this;
-
-  var callback = function(element, data, finalBlockID) {
-    //console.log("callback")
-    if (!element){
-      var interest = data;
-      var seg = ndn.DataUtils.bigEndianToUnsignedInt(interest.name.get(-1).getValue().buf());
-      if (segmentRequested[seg] < 4) {
-        segmentRequested[seg]++;
-        var packet = interest.wireEncode().buffer;
-        Self.PIT.insertPitEntry(packet, interest, callback);
-        Self.interfaces.dispatch(packet, 1);
-      } else if ((timeoutTriggered === false)) {
-        timeoutTriggered = true;
-        onTimeout(firstSegmentInterest);
-      }
-    } else {
-      //console.log("element returned", data.name.toUri(), finalBlockID)
-      onEachData(element, data, finalBlockID);
-
-      interestsInFlight--;
-
-      var segmentNumber =  ndn.DataUtils.bigEndianToUnsignedInt(data.name.get(-1).getValue().buf());
-
-      finalSegmentNumber = 1 + ndn.DataUtils.bigEndianToUnsignedInt(data.signedInfo.getFinalBlockIDAsBuffer());
-      //console.log("finalSegmentNumber", finalSegmentNumber);
-
-      if (interestsInFlight < windowSize) {
-        var p;
-        for (var i = 0; i < finalSegmentNumber; i++) {
-          if (segmentRequested[i] === undefined) {
-
-            var newInterest = new ndn.Interest(masterInterest);
-
-            newInterest.name.appendSegment(i);
-            p = newInterest.wireEncode();
-            segmentRequested[i] = 0;
-            Self.PIT.insertPitEntry(p, newInterest, callback);
-            Self.interfaces.dispatch(p, 1);
-
-
-            interestsInFlight++;
-            if (interestsInFlight === windowSize) {
-              i = finalSegmentNumber;
-            }
-          }
-        }
-      }
-    }
-  };
-
-  segmentRequested[0] = 0;
-  var packet = firstSegmentInterest.wireEncode().buffer;
-  firstSegmentInterest = new ndn.Interest();
-  firstSegmentInterest.wireDecode(packet);
-  this.PIT.insertPitEntry(packet, firstSegmentInterest, callback);
-  this.interfaces.dispatch(packet, 1);
-  //console.log("dispatched");
-};
-
-module.exports = IO;
-
-},{"./Publisher.js":114,"ndn-contrib":14,"ndn-lib/js/transport/unix-transport.js":109}],114:[function(require,module,exports){
+},{}],102:[function(require,module,exports){
 (function (Buffer){
 var ndn;
 
@@ -26536,7 +26904,7 @@ Publisher.installNDN = function(NDN){
  *@param {Number} milliseconds freshness period of published packets
  *@returns {this} for chaining
  */
-Publisher.setFreshnessPeriod = function(milliseconds){
+Publisher.prototype.setFreshnessPeriod = function(milliseconds){
   this.freshnessPeriod = milliseconds;
   return this;
 };
@@ -26545,7 +26913,28 @@ Publisher.setFreshnessPeriod = function(milliseconds){
  *@oaram {File|Blob|Buffer|FilePath|String|Object} toPublish the thing to publish
  *@returns {this} this for chaining
  */
-Publisher.setToPublish = function(toPublish){
+Publisher.prototype.setToPublish = function(toPublish){
+  var er;
+
+  if (typeof toPublish != "string") {
+    if (!(toPublish instanceof File
+          || (toPublish instanceof Blob)
+          || (toPublish instanceof Buffer)
+          || (toPublish instanceof Object)
+         )){
+      er = true;
+    } else if (toPublish instanceof Object){
+      try{
+        JSON.stringify(toPublish);
+      } catch (e){
+        er = e;
+      }
+    }
+    if (er) {
+      throw new TypeError("toPublish must be File, Blob, Buffer, FilePath, String, or parsable JSON");
+    }
+  }
+
   this.toPublish = toPublish;
   return this;
 };
@@ -26554,7 +26943,7 @@ Publisher.setToPublish = function(toPublish){
  *@oaram {String} name the uri to publish as
  *@returns {this} this for chaining
  */
-Publisher.setName = function(name){
+Publisher.prototype.setName = function(name){
   this.name = new ndn.Name(name);
   return this;
 };
@@ -26565,7 +26954,12 @@ Publisher.setName = function(name){
  */
 Publisher.prototype.publish = function(callback){
   callback = callback || function(){};
-  if ((this.toPublish instanceof File || Blob || Buffer) || ((typeof this.toPublish === "string") && (this.toPublish.indexOf("file://") === 0))){
+  if ((this.toPublish instanceof File
+       || this.toPublish instanceof Blob
+       || Buffer.isBuffer(this.toPublish))
+      || ((typeof this.toPublish === "string")
+          && (this.toPublish.indexOf("file://") === 0))){
+    console.log("file" ,(typeof this.toPublish === "string") && (this.toPublish.indexOf("file://") === 0))
     callback(this.publishFile(this.toPublish, this.name));
   } else if (typeof this.toPublish === "string"){
     callback(this.publishString(this.toPublish, this.name));
@@ -26634,7 +27028,7 @@ Publisher.prototype.publishString = function(){
 
   var length = chunks.length;
   for (var i = 0; i < length; i++){
-    var n = new ndn.Name(name);
+    var n = new ndn.Name(this.name);
     var d = new ndn.Data(n.appendSegment(i), new ndn.SignedInfo(), chunks.shift());
     d.signedInfo.setFreshnessPeriod(this.freshnessPeriod);
     d.signedInfo.setFinalBlockID(new ndn.Name.Component(ndn.DataUtils.nonNegativeIntToBigEndian(length - 1)));
@@ -26651,7 +27045,7 @@ Publisher.prototype.publishString = function(){
 module.exports = Publisher;
 
 }).call(this,require("buffer").Buffer)
-},{"./node/readFile.js":"eE9h1p","buffer":3}],"eE9h1p":[function(require,module,exports){
+},{"./node/readFile.js":103,"buffer":5}],103:[function(require,module,exports){
 (function (Buffer){
 
 module.exports = function(file){
@@ -26666,98 +27060,177 @@ module.exports = function(file){
 };
 
 }).call(this,require("buffer").Buffer)
-},{"buffer":3}],"./src/node/readFiles.js":[function(require,module,exports){
-module.exports=require('eE9h1p');
-},{}],117:[function(require,module,exports){
-(function (global){
-var IO = require('../../index.js')
-  , transportClass = require("ndn-contrib/src/Transports/browser/MessageChannel.js")
-  , IO1
-  , Interfaces = require("ndn-contrib/src/DataStructures/Interfaces.js");
+},{"buffer":5}],104:[function(require,module,exports){
+(function (Buffer){
+var Publisher = require("../src/Publisher.js")
+var ndn = require("ndn-contrib");
+var ioShim = {}
+var assert = require("assert")
+var pub;
+ioShim.nameTree = new ndn.NameTree()
+ioShim.contentStore = new ndn.ContentStore(ioShim.nameTree);
+ioShim.PIT = new ndn.PIT(ioShim.nameTree);
+ioShim.FIB = new ndn.FIB(ioShim.nameTree);
+ioShim.ndn = ndn.ndn;
+Publisher.installNDN(ndn.ndn)
 
-var dat = []
+module.exports= function(assert){
+  describe("Publisher crossPlatform", function(){
+    describe("contstructor", function(){
+      it("should attach contentStore", function(){
+        pub = new Publisher(ioShim);
+        assert(pub.contentStore instanceof ndn.ContentStore);
+      })
+    })
 
+    describe("setFreshnessPeriod", function(){
+      it("freshnessPeriod should be default before set", function(){
+        assert(pub.freshnessPeriod == 60 * 60 * 1000)
 
-var ms = new MessageChannel()
-IO1 = new IO(transportClass, ms.port1)
-var ndn = IO1.ndn;
+      })
+      it("should accept setter", function(){
+        pub.setFreshnessPeriod(1000)
+        assert(pub.freshnessPeriod == 1000)
+      })
+    })
 
-for (var i = 0 ; i < 100; i++){
-  var n = new ndn.Name("test/1/1")
-  n.appendSegment(i);
-  var d = new ndn.Data(n, new ndn.SignedInfo(), "test");
-  d.signedInfo.setFinalBlockID([0,99])
-  d.signedInfo.setFields()
-  d.sign()
-  dat[i] = d.wireEncode().buffer;
+    describe("setName", function(){
+      it("should accept setter", function(){
+        pub.setName("test/Name")
+        assert(pub.name instanceof ndn.ndn.Name)
+        assert(pub.name.toUri() === "/test/Name")
+      })
+    })
+
+    describe("setToPublish", function(){
+
+      it("should accept string", function(){
+        pub.setToPublish("string")
+        assert(pub.toPublish == "string");
+      })
+
+      it("should accept valid json", function(){
+        var obj = {
+          test: "string"
+        }
+        pub.setToPublish(obj)
+        assert(pub.toPublish == obj);
+      })
+
+      it("should reject circular json", function(done){
+        var bad = {
+          test: bad
+        }
+        bad.test = bad
+        try{
+          pub.setToPublish(bad)
+        } catch (e) {
+          done();
+        }
+      })
+
+      it("should accept Buffer", function(){
+        var buf = new Buffer([0,1,2])
+        pub.setToPublish(buf)
+        assert(pub.toPublish === buf)
+      })
+
+    })
+
+    describe("publish", function(){
+
+      describe("should de-mux", function(){
+
+        it("string", function(done){
+          pub.publishString = function(){done();};
+          pub.setToPublish("STRING")
+          pub.publish();
+        })
+
+        it("object", function(done){
+          pub.publishJSON = function(){done();};
+          pub.setToPublish({"STRING": "string"})
+          pub.publish();
+        })
+
+        it("filePath", function(done){
+          pub.publishFile = function(){done();};
+          pub.setToPublish("file://Path/to/file")
+          pub.publish();
+        })
+
+        it("Buffer", function(done){
+          pub.publishFile= function(){done();}
+          pub.setToPublish(new Buffer([207]))
+          pub.publish();
+        })
+      })
+      pub = new Publisher(ioShim);
+
+      it("should publish JSON", function(done){
+        pub.setName("testPub")
+        pub.setToPublish({obj:"stuff"})
+        pub.publish( function(firstData){
+          console.log("callback")
+          assert(firstData instanceof ndn.ndn.Data, "firsData not being sent in callback")
+          assert(pub.contentStore.nameTree["/testPub"], "nameTree not reflecting branch")
+          assert(pub.contentStore.nameTree["/testPub/%00"], "nameTree not reflecting leaf")
+          var inst = new ndn.ndn.Interest(pub.name)
+          var d = new ndn.ndn.Data()
+          var res = (pub.contentStore.check(inst))
+          assert((res instanceof Buffer) || (res instanceof Uint8Array), "contentStore not returning BUffer")
+          d.wireDecode(pub.contentStore.check(inst))
+          assert(JSON.parse(d.content.toString()).obj === "stuff")
+          done();
+        })
+      })
+
+      it("should publish String", function(done){
+        pub.setName("testPubString")
+        pub.setToPublish("stuff")
+        pub.publish( function(firstData){
+          console.log("callback")
+          assert(firstData instanceof ndn.ndn.Data)
+          assert(pub.contentStore.nameTree["/testPubString"])
+          assert(pub.contentStore.nameTree["/testPubString/%00"])
+          var inst = new ndn.ndn.Interest(pub.name)
+          var d = new ndn.ndn.Data()
+
+          var res = (pub.contentStore.check(inst))
+          assert((res instanceof Buffer) || (res instanceof Uint8Array) )
+          d.wireDecode(pub.contentStore.check(inst))
+          assert(d.content.toString() === "stuff")
+          done();
+        })
+      })
+
+      it("should publish Buffer", function(done){
+        pub.setName("testPubBuffer")
+        pub.setToPublish((new Buffer([207])))
+        pub.publish( function(firstData){
+          console.log("callback")
+          assert(firstData instanceof ndn.ndn.Data)
+          assert(pub.contentStore.nameTree["/testPubBuffer"])
+          assert(pub.contentStore.nameTree["/testPubBuffer/%00"])
+          var inst = new ndn.ndn.Interest(pub.name)
+          var d = new ndn.ndn.Data()
+          var res = (pub.contentStore.check(inst))
+          assert((res instanceof Buffer) || (res instanceof Uint8Array) )
+          d.wireDecode(pub.contentStore.check(inst))
+          console.log(d.content)
+          assert((d.content[0] === 207) || (d.content.data[0] === 207))
+          done();
+        })
+      })
+    })
+
+  })
+
 }
 
-global.ndn = ndn;
-global.IO1 = IO1;
+}).call(this,require("buffer").Buffer)
+},{"../src/Publisher.js":102,"assert":2,"buffer":5,"ndn-contrib":17}],105:[function(require,module,exports){
 
-describe('IO', function(){
-  describe('constructor', function(){
-    it('should start without error without contentStore', function() {
-      assert(IO1.interfaces, ".Interfaces not present")
-      assert(IO1.nameTree, ".nameTree not present")
-      assert(IO1.contentStore, ".contentStore not present")
-    })
-  })
-  describe("fetchAllSegments", function(){
-    it("should trigger onTimeout once", function(done){
-      var n = new ndn.Name("test/1/1")
-      n.appendSegment(0)
-      var inst = new ndn.Interest(n)
-      inst.setInterestLifetimeMilliseconds(10);
+require("../Publisher.js")(assert)
 
-      IO1.fetchAllSegments(inst, function(){assert(false)}, function(){
-        done();
-      })
-    })
-    it("should call onEachData once and only once", function(done){
-      var count = 0
-
-      var n = new ndn.Name("test/1/1")
-      n.appendSegment(0)
-      var inst = new ndn.Interest(n)
-      inst.setInterestLifetimeMilliseconds(1000);
-      console.log(IO1.interfaces)
-      var sent = []
-      IO2 = new Interfaces({
-        handleInterest: function(element, faceID){
-          //console.log("handle interest called")
-          var inst = new ndn.Interest()
-          inst.wireDecode(element)
-          var seg = ndn.DataUtils.bigEndianToUnsignedInt(inst.name.get(-1).getValue().buf());
-          if (!sent[seg]){
-            sent[seg] = true
-            console.log("sending segment", seg)
-            IO2.dispatch(dat[seg], (0 | (1<<faceID)));
-          }
-        },
-        handleData: function(element, faceID){
-
-        }
-      });
-
-      IO2.installTransport(transportClass)
-      IO2.newFace(transportClass.prototype.name, ms.port2)
-      global.IO2 = IO2;
-      IO1.fetchAllSegments(inst, function(){
-        count++
-        console.log(count)
-        assert(count <= 100, "count greater than 100")
-        if (count == 100){
-          done()
-        }
-      }, function(){
-        console.log("timeout triggered")
-        //assert(false, "timeout should not be triggered")
-      })
-    })
-  })
-})
-
-
-}).call(this,typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"../../index.js":1,"ndn-contrib/src/DataStructures/Interfaces.js":91,"ndn-contrib/src/Transports/browser/MessageChannel.js":96}]},{},[117])
+},{"../Publisher.js":104}]},{},[105])
