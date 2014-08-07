@@ -34,7 +34,7 @@ Publisher.installNDN = function(NDN){
  *@param {Number} milliseconds freshness period of published packets
  *@returns {this} for chaining
  */
-Publisher.setFreshnessPeriod = function(milliseconds){
+Publisher.prototype.setFreshnessPeriod = function(milliseconds){
   this.freshnessPeriod = milliseconds;
   return this;
 };
@@ -43,7 +43,28 @@ Publisher.setFreshnessPeriod = function(milliseconds){
  *@oaram {File|Blob|Buffer|FilePath|String|Object} toPublish the thing to publish
  *@returns {this} this for chaining
  */
-Publisher.setToPublish = function(toPublish){
+Publisher.prototype.setToPublish = function(toPublish){
+  var er;
+
+  if (typeof toPublish != "string") {
+    if (!(toPublish instanceof File
+          || (toPublish instanceof Blob)
+          || (toPublish instanceof Buffer)
+          || (toPublish instanceof Object)
+         )){
+      er = true;
+    } else if (toPublish instanceof Object){
+      try{
+        JSON.stringify(toPublish);
+      } catch (e){
+        er = e;
+      }
+    }
+    if (er) {
+      throw new TypeError("toPublish must be File, Blob, Buffer, FilePath, String, or parsable JSON");
+    }
+  }
+
   this.toPublish = toPublish;
   return this;
 };
@@ -52,7 +73,7 @@ Publisher.setToPublish = function(toPublish){
  *@oaram {String} name the uri to publish as
  *@returns {this} this for chaining
  */
-Publisher.setName = function(name){
+Publisher.prototype.setName = function(name){
   this.name = new ndn.Name(name);
   return this;
 };
@@ -63,7 +84,12 @@ Publisher.setName = function(name){
  */
 Publisher.prototype.publish = function(callback){
   callback = callback || function(){};
-  if ((this.toPublish instanceof File || Blob || Buffer) || ((typeof this.toPublish === "string") && (this.toPublish.indexOf("file://") === 0))){
+  if ((this.toPublish instanceof File
+       || this.toPublish instanceof Blob
+       || Buffer.isBuffer(this.toPublish))
+      || ((typeof this.toPublish === "string")
+          && (this.toPublish.indexOf("file://") === 0))){
+    console.log("file" ,(typeof this.toPublish === "string") && (this.toPublish.indexOf("file://") === 0))
     callback(this.publishFile(this.toPublish, this.name));
   } else if (typeof this.toPublish === "string"){
     callback(this.publishString(this.toPublish, this.name));
@@ -132,7 +158,7 @@ Publisher.prototype.publishString = function(){
 
   var length = chunks.length;
   for (var i = 0; i < length; i++){
-    var n = new ndn.Name(name);
+    var n = new ndn.Name(this.name);
     var d = new ndn.Data(n.appendSegment(i), new ndn.SignedInfo(), chunks.shift());
     d.signedInfo.setFreshnessPeriod(this.freshnessPeriod);
     d.signedInfo.setFinalBlockID(new ndn.Name.Component(ndn.DataUtils.nonNegativeIntToBigEndian(length - 1)));
