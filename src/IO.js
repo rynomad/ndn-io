@@ -600,7 +600,7 @@ IO.prototype.fetchAllSegments = function(firstSegmentInterest, onEachData, onTim
             var newInterest = new ndn.Interest(masterInterest);
 
             newInterest.name.appendSegment(i);
-            console.log("times",masterInterest.interestLifetime, newInterest.interestLifetime)
+            //console.log("times",masterInterest.interestLifetime, newInterest.interestLifetime)
             newInterest.setInterestLifetimeMilliseconds(masterInterest.getInterestLifetimeMilliseconds());
             p = newInterest.wireEncode();
             segmentRequested[i] = 0;

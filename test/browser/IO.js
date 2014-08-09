@@ -1,10 +1,10 @@
-var IO = require('../../index.js')
-, transportClass = require("ndn-contrib/src/Transports/browser/MessageChannel.js")
+var  transportClass = require("ndn-contrib/src/Transports/browser/MessageChannel.js")
 , IO1
-, Interfaces = require("ndn-contrib/src/DataStructures/Interfaces.js")
 , dat = [];
 
-
+var io = require("../IO.js")
 var ms = new MessageChannel()
+module.exports = function(assert){
+  io(transportClass, ms.port1, ms.port2, assert);
+}
 
-require("../IO.js")(transportClass, ms.port1, ms.port2, assert)

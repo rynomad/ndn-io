@@ -1,3 +1,2 @@
-
-require("../Publisher.js")(assert)
 require("./IO.js")(assert)
+require("../Publisher.js")(assert)

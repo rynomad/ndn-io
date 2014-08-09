@@ -7,11 +7,11 @@ module.exports = function(Transport, connectionInfo1, connectionInfo2, assert){
   var ndn = IO1.ndn;
   var dat = []
 
-  for (var i = 0 ; i < 100; i++){
+  for (var i = 0 ; i < 50; i++){
     var n = new ndn.Name("test/1/1")
     n.appendSegment(i);
     var d = new ndn.Data(n, new ndn.SignedInfo(), "test");
-    d.signedInfo.setFinalBlockID([0,99])
+    d.signedInfo.setFinalBlockID([0,49])
     d.signedInfo.setFields()
     d.sign()
     dat[i] = d.wireEncode().buffer;
@@ -39,23 +39,22 @@ module.exports = function(Transport, connectionInfo1, connectionInfo2, assert){
         })
       })
       it("should call onEachData once and only once", function(done){
+        this.timeout(1000000000)
         var count = 0
 
         var n = new ndn.Name("test/1/1")
         n.appendSegment(0)
         var inst = new ndn.Interest(n)
-        inst.setInterestLifetimeMilliseconds(500);
+        inst.setInterestLifetimeMilliseconds(100);
         //console.log(IO1.interfaces)
         var sent = []
         IO2 = new Interfaces({
           handleInterest: function(element, faceID){
-            console.log("handle interest called")
             var inst = new ndn.Interest()
             inst.wireDecode(element)
             var seg = ndn.DataUtils.bigEndianToUnsignedInt(inst.name.get(-1).getValue().buf());
             if (!sent[seg]){
-              sent[seg] = true
-              console.log("sending segment", seg)
+              sent[seg] = true;
               IO2.dispatch(dat[seg], (0 | (1<<faceID)));
             }
           },
@@ -69,18 +68,17 @@ module.exports = function(Transport, connectionInfo1, connectionInfo2, assert){
           global.IO2 = IO2;
           IO1.fetchAllSegments(inst, function(arg, inst){
             count++
-            assert(count <= 100, "count greater than 100")
-            if (count == 100){
+            assert(count <= 50, "count greater than 100")
+            if (count == 50){
               done()
             }
           }, function(i){
-            console.log(i)
             console.log("timeout triggered")
-            assert(false, "timeout should not be triggered")
+            //assert(false, "timeout should not be triggered")
           })
         })
-
       })
+
     })
   })
 
