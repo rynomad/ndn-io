@@ -558,12 +558,14 @@ IO.prototype.handleData = function(element, faceID){
 IO.prototype.fetchAllSegments = function(firstSegmentInterest, onEachData, onTimeout){
   var interestsInFlight = 0
     , windowSize = 4
-    , masterInterest = new ndn.Interest(firstSegmentInterest.name.getPrefix(-1), firstSegmentInterest)
+    , masterInterest = new ndn.Interest(firstSegmentInterest)
     , finalSegmentNumber
     , interest = new ndn.Interest(masterInterest)
     , timeoutTriggered = false
     , segmentRequested = []
     , Self = this;
+
+  masterInterest.name = firstSegmentInterest.name.getPrefix(-1)
 
   var callback = function(element, data, finalBlockID) {
     //console.log("callback")
@@ -598,6 +600,8 @@ IO.prototype.fetchAllSegments = function(firstSegmentInterest, onEachData, onTim
             var newInterest = new ndn.Interest(masterInterest);
 
             newInterest.name.appendSegment(i);
+            console.log("times",masterInterest.interestLifetime, newInterest.interestLifetime)
+            newInterest.setInterestLifetimeMilliseconds(masterInterest.getInterestLifetimeMilliseconds());
             p = newInterest.wireEncode();
             segmentRequested[i] = 0;
             Self.PIT.insertPitEntry(p, newInterest, callback);

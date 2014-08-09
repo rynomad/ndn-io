@@ -44,13 +44,12 @@ module.exports = function(Transport, connectionInfo1, connectionInfo2, assert){
         var n = new ndn.Name("test/1/1")
         n.appendSegment(0)
         var inst = new ndn.Interest(n)
-        inst.setInterestLifetimeMilliseconds(100);
+        inst.setInterestLifetimeMilliseconds(500);
         //console.log(IO1.interfaces)
         var sent = []
         IO2 = new Interfaces({
           handleInterest: function(element, faceID){
             console.log("handle interest called")
-            throw new Error();
             var inst = new ndn.Interest()
             inst.wireDecode(element)
             var seg = ndn.DataUtils.bigEndianToUnsignedInt(inst.name.get(-1).getValue().buf());
@@ -68,14 +67,14 @@ module.exports = function(Transport, connectionInfo1, connectionInfo2, assert){
         IO2.installTransport(Transport)
         IO2.newFace(Transport.prototype.name, connectionInfo2, function(){
           global.IO2 = IO2;
-          IO1.fetchAllSegments(inst, function(){
+          IO1.fetchAllSegments(inst, function(arg, inst){
             count++
-            console.log(count)
             assert(count <= 100, "count greater than 100")
             if (count == 100){
               done()
             }
-          }, function(){
+          }, function(i){
+            console.log(i)
             console.log("timeout triggered")
             assert(false, "timeout should not be triggered")
           })
