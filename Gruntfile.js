@@ -7,8 +7,8 @@ module.exports = function(grunt){
 
       },
       boom: {
-        src: "test/browser/spec.js",
-        dest: "test/browser/browser-spec.js"
+        src: "test/browser/suite.js",
+        dest: "test/browser/compiledSuite.js"
       }
     },
     jsdoc : {
@@ -25,7 +25,7 @@ module.exports = function(grunt){
           reporter: 'spec'
           ,clearRequireCache: true
         },
-        src: ["test/node/spec.js"]
+        src: ["test/node/suite.js"]
       },
     },
     jshint: {
@@ -54,7 +54,6 @@ module.exports = function(grunt){
   grunt.loadNpmTasks("grunt-mocha-test");
   grunt.loadNpmTasks('grunt-contrib-jshint');
   grunt.loadNpmTasks("grunt-contrib-watch");
-  grunt.loadNpmTasks("grunt-saucelabs");
   grunt.loadNpmTasks('grunt-browserify');
 
   grunt.registerTask('suite', ['jshint', 'browserify', "mochaTest"])

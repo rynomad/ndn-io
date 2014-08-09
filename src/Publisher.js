@@ -46,7 +46,7 @@ Publisher.prototype.setFreshnessPeriod = function(milliseconds){
 Publisher.prototype.setToPublish = function(toPublish){
   var er;
 
-  if (typeof toPublish != "string") {
+  if (typeof toPublish !== "string") {
     if (!(toPublish instanceof File
           || (toPublish instanceof Blob)
           || (toPublish instanceof Buffer)
@@ -89,7 +89,7 @@ Publisher.prototype.publish = function(callback){
        || Buffer.isBuffer(this.toPublish))
       || ((typeof this.toPublish === "string")
           && (this.toPublish.indexOf("file://") === 0))){
-    console.log("file" ,(typeof this.toPublish === "string") && (this.toPublish.indexOf("file://") === 0))
+    console.log("file" ,(typeof this.toPublish === "string") && (this.toPublish.indexOf("file://") === 0));
     callback(this.publishFile(this.toPublish, this.name));
   } else if (typeof this.toPublish === "string"){
     callback(this.publishString(this.toPublish, this.name));

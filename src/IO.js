@@ -565,7 +565,7 @@ IO.prototype.fetchAllSegments = function(firstSegmentInterest, onEachData, onTim
     , segmentRequested = []
     , Self = this;
 
-  masterInterest.name = firstSegmentInterest.name.getPrefix(-1)
+  masterInterest.name = firstSegmentInterest.name.getPrefix(-1);
 
   var callback = function(element, data, finalBlockID) {
     //console.log("callback")
