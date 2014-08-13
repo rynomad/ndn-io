@@ -68,12 +68,12 @@ IO.prototype.fetch = function(type, uri, callback, timeout){
   } else if (type === "object" || "json"){
     this.fetcher.getJSON(callback, timeout);
     return this;
-  } else if (type == "string"){
+  } else if (type === "string"){
     this.fetcher.getString(callback, timeout);
     return this;
   }
 
-  throw new TypeError("type must be a mimeString, or 'object', 'json', or 'string'")
+  throw new TypeError("type must be a mimeString, or 'object', 'json', or 'string'");
 };
 
 /** settable announce function. Rather than enforce a handshake naming convention/protocol
@@ -100,7 +100,7 @@ IO.prototype.setAnnouncer = function(announcer){
 IO.prototype.addListener = function(prefix, connectionParameters){
 
   this.FIB.addEntry(prefix, [{
-    faceID: this.Interfaces.newFace(IO.LocalTransport, connectionParameters)
+    faceID: this.Interfaces.newFace(IO.localTransport, connectionParameters)
   }]);
 };
 

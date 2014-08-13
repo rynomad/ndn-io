@@ -44,7 +44,7 @@ module.exports = function(grunt){
       },
       livereload: {
         options: { livereload: true },
-        files: ['test/browser/**/*.js'],
+        files: ['test/browser/*.js'],
       }
 
     }

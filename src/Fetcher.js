@@ -11,9 +11,9 @@ function Fetcher (io, uri, interestLifetimeMilliseconds){
   this.io = io;
   this.name = new ndn.Name(uri);
   this.masterInterest = new ndn.Interest(this.name);
-  this.setInterestLifetimeMilliseconds(interestLifetimeMilliseconds);
-  this.setMinSuffixComponents(0);
-  this.setMaxSuffixComponents(0);
+  this.masterInterest.setInterestLifetimeMilliseconds(interestLifetimeMilliseconds);
+  this.masterInterest.setMinSuffixComponents(0);
+  this.masterInterest.setMaxSuffixComponents(0);
   this.interestLifetimeMilliseconds = interestLifetimeMilliseconds;
   return this;
 }
