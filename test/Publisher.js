@@ -8,7 +8,7 @@ ioShim.contentStore = new ndn.ContentStore(ioShim.nameTree);
 ioShim.PIT = new ndn.PIT(ioShim.nameTree);
 ioShim.FIB = new ndn.FIB(ioShim.nameTree);
 ioShim.ndn = ndn.ndn;
-Publisher.installNDN(ndn.ndn)
+Publisher.installContrib(ndn)
 
 module.exports= function(assert){
   describe("Publisher crossPlatform", function(){

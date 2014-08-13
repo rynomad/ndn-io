@@ -19,8 +19,7 @@
     "url": "https://github.com/rynomad/ndn-io/issues"
   },
   "browser": {
-    "./src/node/readFile.js": "./src/browser/readFile.js",
-    "ndn-lib/js/transports/unix-transport.js": "ndn-contrib/src/Transports/MessageChannel.js"
+    "./src/node/readFile.js": "./src/browser/readFile.js"
   },
   "dependencies": {
     "workerify": "~0.2.3",

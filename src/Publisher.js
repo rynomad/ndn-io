@@ -1,16 +1,16 @@
-var ndn;
+var ndn, contrib;
 
 if (!File){
   var File = function File(){}
     , Blob = function Blob(){};
 }
 
-/** Publisher object for files
+/** Publisher object
  *@constructor
  *@param {IO} io the IO instance
- *@param {String} name the uri to publish the object as
- *@param {File|Blob|Buffer|FilePath|String|Object} toPublish the thing to publish
- *@param {Number} freshnessPeriod the freshnessPeriod of the published data in milliseconds (default 1 hour)
+ *@param {String=} name the uri to publish the object as
+ *@param {File|Blob|Buffer|FilePath|String|Object=} toPublish the thing to publish
+ *@param {Number=} freshnessPeriod the freshnessPeriod of the published data in milliseconds (default 1 hour)
  *@returns {Publisher}
  */
 function Publisher (io, name, toPublish, freshnessPeriod){
@@ -21,13 +21,14 @@ function Publisher (io, name, toPublish, freshnessPeriod){
   return this;
 }
 
-/** import ndn-lib into Class scope
+/** import ndn-contrib into Class scope
  *@static
- *@param {Object} NDN the ndn-lib object
+ *@param {Object} NDN the ndn-contrib object
  */
 
-Publisher.installNDN = function(NDN){
-  ndn = NDN;
+Publisher.installContrib = function(contrib){
+  contrib = contrib;
+  ndn = contrib.ndn;
 };
 
 /** set the freshnessPeriod of data to publish
