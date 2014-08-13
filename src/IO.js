@@ -49,6 +49,33 @@ IO.prototype.publish = function(toPublish, name, freshnessMilliseconds){
              .publish(this.announcer);
 };
 
+/** Fetche a Blob/Buffer, JSON object, or String
+ *@param {String} type a MIME string (eg 'application/javascript') or 'json', 'object', 'string'
+ *@param {String} uri the uri of the thing to fetch
+ *@param {Function} callback success callback
+ *@param {Function} timeout timeout callback
+ *@returns {this} for chaining
+ */
+IO.prototype.fetch = function(type, uri, callback, timeout){
+  this.fetcher = this.fetcher || new Fetcher(this);
+
+  this.setName(uri)
+      .setInterestLifetimeMilliseconds(4000);
+
+  if (type.split("/").length === 2){
+    this.fetcher.getFile(type, callback, timeout);
+    return this;
+  } else if (type === "object" || "json"){
+    this.fetcher.getJSON(callback, timeout);
+    return this;
+  } else if (type == "string"){
+    this.fetcher.getString(callback, timeout);
+    return this;
+  }
+
+  throw new TypeError("type must be a mimeString, or 'object', 'json', or 'string'")
+};
+
 /** settable announce function. Rather than enforce a handshake naming convention/protocol
  * it is up to application developer convention to negotiate storage request handshakes.
  * This function is called within {IO.publish} after the data is in the contentStore

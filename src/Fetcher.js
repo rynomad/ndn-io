@@ -68,7 +68,7 @@ Fetcher.prototype.assembleJSON = function(contentArray){
 
 Fetcher.prototype.assembleFile = require("./node/assembleFile.js");
 
-Fetcher.prototype.getFile = function(callback, timeout){
+Fetcher.prototype.getFile = function(mimeString, callback, timeout){
   var Self = this;
   this.get(function(contentArray){
     callback(Self.assembleFile(contentArray, mimeString));
