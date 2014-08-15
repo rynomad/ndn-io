@@ -1,14 +1,21 @@
 module.exports = function(grunt){
 
   grunt.initConfig({
+    uglify: {
+      test: {
+        files: {
+          'test/browser/compiledSuite.js': ['test/browser/assembled.js']
+        }
+      }
+    },
     browserify: {
       options:{
-        alias: ["./src/browser/readFile.js:./src/node/readFiles.js"]
+        alias: ["./src/browser/readFile.js:./src/node/readFile.js", "./src/browser/assembleFile.js:./src/node/assembleFile.js"]
 
       },
       boom: {
         src: "test/browser/suite.js",
-        dest: "test/browser/compiledSuite.js"
+        dest: "test/browser/assembled.js"
       }
     },
     jsdoc : {
@@ -40,11 +47,11 @@ module.exports = function(grunt){
     watch: {
       all: {
         files: ["src/*.js", "src/**/*.js"],
-        tasks: ["jshint", "browserify", "mochaTest" ]
+        tasks: ["jshint", "browserify", "uglify:test", "mochaTest" ]
       },
       livereload: {
         options: { livereload: true },
-        files: ['test/browser/*.js'],
+        files: ['test/browser/compiledSuite.js'],
       }
 
     }
@@ -55,6 +62,7 @@ module.exports = function(grunt){
   grunt.loadNpmTasks('grunt-contrib-jshint');
   grunt.loadNpmTasks("grunt-contrib-watch");
   grunt.loadNpmTasks('grunt-browserify');
+  grunt.loadNpmTasks('grunt-contrib-uglify');
 
   grunt.registerTask('suite', ['jshint', 'browserify', "mochaTest"])
   grunt.registerTask('build', ['browserify:test', 'connect', 'saucelabs-mocha'])

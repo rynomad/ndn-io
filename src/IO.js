@@ -49,31 +49,22 @@ IO.prototype.publish = function(toPublish, name, freshnessMilliseconds){
              .publish(this.announcer);
 };
 
-/** Fetche a Blob/Buffer, JSON object, or String
+/** Fetch a Blob/Buffer, JSON object, or String
  *@param {String} type a MIME string (eg 'application/javascript') or 'json', 'object', 'string'
  *@param {String} uri the uri of the thing to fetch
  *@param {Function} callback success callback
  *@param {Function} timeout timeout callback
  *@returns {this} for chaining
  */
-IO.prototype.fetch = function(type, uri, callback, timeout){
+IO.prototype.fetch = function(type, uri, callback){
   this.fetcher = this.fetcher || new Fetcher(this);
 
-  this.setName(uri)
-      .setInterestLifetimeMilliseconds(4000);
+  this.fetcher.setName(uri)
+              .setInterestLifetimeMilliseconds(2000)
+              .setType(type)
+              .get(callback);
 
-  if (type.split("/").length === 2){
-    this.fetcher.getFile(type, callback, timeout);
-    return this;
-  } else if (type === "object" || "json"){
-    this.fetcher.getJSON(callback, timeout);
-    return this;
-  } else if (type === "string"){
-    this.fetcher.getString(callback, timeout);
-    return this;
-  }
-
-  throw new TypeError("type must be a mimeString, or 'object', 'json', or 'string'");
+  return this;
 };
 
 /** settable announce function. Rather than enforce a handshake naming convention/protocol
@@ -165,7 +156,7 @@ IO.prototype.fetchAllSegments = function(firstSegmentInterest, onEachData, onTim
         Self.interfaces.dispatch(packet, 1);
       } else if ((timeoutTriggered === false)) {
         timeoutTriggered = true;
-        onTimeout(firstSegmentInterest);
+        onTimeout(new Error("fetching data failed due to timeout: ", firstSegmentInterest.toUri()));
       }
     } else {
       //console.log("element returned", data.name.toUri(), finalBlockID)

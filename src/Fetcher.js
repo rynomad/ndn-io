@@ -33,6 +33,11 @@ Fetcher.prototype.setName = function(uri){
   return this;
 };
 
+Fetcher.prototype.setType = function(type){
+  this.type = type;
+  return this;
+};
+
 Fetcher.prototype.setInterestLifetimeMilliseconds = function(milliseconds){
   this.masterInterest.setInterestLifetimeMilliseconds(milliseconds);
   return this;
@@ -54,6 +59,28 @@ Fetcher.prototype.setExclude = function(excludeArray){
   return this;
 };
 
+Fetcher.prototype.get = function(callback){
+  if (!this.type || ((this.type !== "object" || "json" || "string" ) && (this.type.indexOf("/") === -1))){
+    callback(new TypeError("must call .setType with mimeString, 'object', 'json', 'string' || 'text'"));
+  } else{
+    if (this.type.split("/").length === 2){
+      if (this.type.split(":").length === 2){
+        this.fetcher.getAsObjectURL(callback);
+      } else {
+        this.fetcher.getAsFile(callback);
+      }
+      return this;
+    } else if (type === "object" || "json"){
+      this.fetcher.getAsJSON(callback);
+      return this;
+    } else if (type === "string" || "text"){
+      this.fetcher.getAsString(callback);
+      return this;
+    }
+  }
+  return this;
+};
+
 Fetcher.prototype.assembleString = function(contentArray){
   var string = "";
   for (var i = 0; i < contentArray.length; i++){
@@ -68,36 +95,66 @@ Fetcher.prototype.assembleJSON = function(contentArray){
 
 Fetcher.prototype.assembleFile = require("./node/assembleFile.js");
 
-Fetcher.prototype.getFile = function(mimeString, callback, timeout){
-  var Self = this;
-  this.get(function(contentArray){
-    callback(Self.assembleFile(contentArray, mimeString));
-  }, timeout);
+Fetcher.prototype.getAsFile = function( callback, timeout){
+  var Self = this
+    , type = (this.type.indexOf("url:") === 0) ? this.type.substring(4) : this.type;
+
+  this.get(function(err, contentArray){
+    if (err){
+      callback(err);
+    } else {
+      callback(null, Self.assembleFile(contentArray, type));
+    }
+  });
+  return this;
 };
 
-Fetcher.prototype.getString = function( callback, timeout){
+Fetcher.prototype.getAsString = function( callback, timeout){
   var Self = this;
-  this.get(function(contentArray){
-    callback(Self.assembleString(contentArray));
-  }, timeout);
+  this.get(function(err, contentArray){
+    if (err){
+      callback(err);
+    } else {
+      callback(null, Self.assembleString(contentArray));
+    }
+  });
+  return this;
 };
 
-Fetcher.prototype.getJSON = function(mimeString, callback, timeout){
+Fetcher.prototype.getAsObjectURL = (function(){
   var Self = this;
-  this.get(function(contentArray){
+  try {
+    if (URL){
+      return function getObjectUrl(callback, timeout){
+        Self.getAsFile(function(err, blob){
+          if (err){
+            callback(err);
+          } else {
+            callback(null, URL.createObjectURL(blob));
+          }
+        });
+        return this;
+      };
+    }
+    return function(){console.log("no URL support on this platform"); return this;};
+  } catch(e){
+    return function(){console.log("no URL support on this platform"); return this;};
+  }
+})();
+
+Fetcher.prototype.getAsJSON = function(mimeString, callback){
+  var Self = this;
+  this.getParts(function(contentArray){
     callback(Self.assembleJSON(contentArray, mimeString));
-  }, timeout);
+  });
 };
 
-Fetcher.prototype.get = function(uri, interestLifetimeMilliseconds, callback, timeout ){
-
+Fetcher.prototype.getParts = function(uri, interestLifetimeMilliseconds, callback){
   if (typeof uri === "function") {
     callback = uri;
-    timeout = interestLifetimeMilliseconds;
   } else if (typeof interestLifetimeMilliseconds === "function"){
     this.setName(uri);
     callback = interestLifetimeMilliseconds;
-    timeout = callback;
   } else {
     this.setName(uri);
     this.setInterestLifetimeMilliseconds(interestLifetimeMilliseconds);
@@ -116,12 +173,14 @@ Fetcher.prototype.get = function(uri, interestLifetimeMilliseconds, callback, ti
     contentArray[segmentNumber] = data.content;
     segmentsRetrieved++;
     if (segmentsRetrieved === totalSegments){
-      callback(contentArray);
+      callback(null, contentArray);
     }
 
   }
 
-  this.io.fetchAllSegments(this.masterInterest, onEachData, timeout );
+  this.io.fetchAllSegments(this.masterInterest, onEachData, callback );
 };
+
+
 
 module.exports = Fetcher;
