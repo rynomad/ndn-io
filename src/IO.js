@@ -21,8 +21,12 @@ function IO (transportClass, connectionParameters, contentStore){
   this.FIB = new contrib.FIB(this.nameTree);
   this.contentStore = contentStore || new contrib.ContentStore(this.nameTree);
   this.ndn = ndn;
+  this.publisher = new Publisher(this);
+  this.fetcher = new Fetcher(this);
   return this;
 }
+
+IO.ndn = ndn;
 
 /** import ndn-contrib into Class scope
  *@static
@@ -32,6 +36,7 @@ IO.installContrib = function(contrib){
   Publisher.installContrib(contrib);
   Fetcher.installContrib(contrib);
   ndn = contrib.ndn;
+  this.ndn = contrib.ndn;
 };
 
 IO.localTransport = require("ndn-lib/js/transport/unix-transport.js");

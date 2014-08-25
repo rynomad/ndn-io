@@ -1,1 +1,2 @@
-module.exports = require("./src/IO.js");
+exports = require("./src/IO.js");
+module.exports = exports;

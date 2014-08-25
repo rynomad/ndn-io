@@ -20,11 +20,12 @@
   },
   "browser": {
     "./src/node/readFile.js": "./src/browser/readFile.js",
-    "./src/node/assembleFile.js": "./src/browser/assembleFile.js"
+    "./src/node/assembleFile.js": "./src/browser/assembleFile.js",
+    "ndn-lib/js/transport/unix-transport.js" : "ndn-contrib/src/Transports/browser/MessageChannel.js"
   },
   "dependencies": {
     "workerify": "~0.2.3",
-    "ndn-lib": "git+https://github.com/rynomad/ndn-js.git#feross",
+    "ndn-lib": "git+https://github.com/rynomad/ndn-js.git#ferossmerge",
     "ndn-contrib": "*"
   },
   "devDependencies": {
