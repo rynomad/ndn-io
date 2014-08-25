@@ -6,6 +6,11 @@ module.exports = function(grunt){
         files: {
           'test/browser/compiledSuite.js': ['test/browser/assembled.js']
         }
+      },
+      build: {
+        files: {
+          'build/ndn-io.min.js' : ["build/ndn-io.js"]
+        }
       }
     },
     browserify: {
@@ -13,9 +18,18 @@ module.exports = function(grunt){
         alias: ["./src/browser/readFile.js:./src/node/readFile.js", "./src/browser/assembleFile.js:./src/node/assembleFile.js"]
 
       },
-      boom: {
+      test: {
         src: "test/browser/suite.js",
         dest: "test/browser/assembled.js"
+      },
+      build: {
+        src: "index.js",
+        dest: "build/ndn-io.js",
+        options: {
+          bundleOptions: {
+            standalone: 'IO'
+          }
+        }
       }
     },
     jsdoc : {
@@ -47,7 +61,7 @@ module.exports = function(grunt){
     watch: {
       all: {
         files: ["src/*.js", "src/**/*.js"],
-        tasks: ["jshint", "browserify", "uglify:test", "mochaTest" ]
+        tasks: ["jshint", "browserify:test", "uglify:test", "mochaTest" ]
       },
       livereload: {
         options: { livereload: true },
@@ -64,7 +78,7 @@ module.exports = function(grunt){
   grunt.loadNpmTasks('grunt-browserify');
   grunt.loadNpmTasks('grunt-contrib-uglify');
 
-  grunt.registerTask('suite', ['jshint', 'browserify', "mochaTest"])
-  grunt.registerTask('build', ['browserify:test', 'connect', 'saucelabs-mocha'])
+  grunt.registerTask('suite', ['jshint', 'browserify:test', "mochaTest"])
+  grunt.registerTask('build', [ "browserify:build", "uglify:build"])
 
 }
