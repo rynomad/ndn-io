@@ -48,6 +48,7 @@ Publisher.prototype.setToPublish = function(toPublish){
   var er;
 
   if (typeof toPublish !== "string") {
+    console.log("not a string", typeof toPublish, toPublish instanceof File, toPublish)
     if (!(toPublish instanceof File
           || (toPublish instanceof Blob)
           || (toPublish instanceof Buffer)
@@ -76,6 +77,7 @@ Publisher.prototype.setToPublish = function(toPublish){
  */
 Publisher.prototype.setName = function(name){
   this.name = new ndn.Name(name);
+  console.log("name set", this.name.toUri())
   return this;
 };
 
@@ -85,17 +87,19 @@ Publisher.prototype.setName = function(name){
  */
 Publisher.prototype.publish = function(callback){
   callback = callback || function(){};
-  if ((this.toPublish instanceof File
-       || this.toPublish instanceof Blob
-       || Buffer.isBuffer(this.toPublish))
+  if (((this.toPublish.type && this.toPublish.size && this.toPublish.name)
+       || (this.toPublish instanceof Blob)
+       || (Buffer.isBuffer(this.toPublish)))
       || ((typeof this.toPublish === "string")
           && (this.toPublish.indexOf("file://") === 0))){
-    console.log("file" ,(typeof this.toPublish === "string") && (this.toPublish.indexOf("file://") === 0));
-    callback(this.publishFile(this.toPublish, this.name));
+    console.log(".publishFile");
+    this.publishFile(callback);
   } else if (typeof this.toPublish === "string"){
-    callback(this.publishString(this.toPublish, this.name));
+    console.log("publishString")
+    callback(this.publishString());
   } else if (typeof this.toPublish === "object"){
-    callback(this.publishJSON(this.toPublish, this.name));
+    console.log("publishJSON")
+    callback(this.publishJSON());
   }
   return this;
 };
@@ -111,27 +115,38 @@ Publisher.prototype.readFile = require("./node/readFile.js");
  *@private
  *@returns {Object} firstData the ndn.Data packet of the first content Object, signed and marked with final
  */
-Publisher.prototype.publishFile = function(){
-  var buffer = this.readFile(this.toPublish)
-    , length = Math.ceil(buffer.length / 8000)
+Publisher.prototype.publishFile = function(callback){
+  //console.log("publishfile called", this.freshnessPeriod)
+  var Self = this;
+  var name = Self.name
+  this.readFile(this.toPublish, function(buffer){
+    var length = Math.ceil(buffer.length / 8000)
     , firstData;
 
-  for (var i = 0; i < length; i++){
-    var n = new ndn.Name(this.name);
-    n.appendSegment(i);
+    //console.log(new ndn.Name.Component(ndn.DataUtils.nonNegativeIntToBigEndian(length - 1)))
 
-    var chunk = buffer.slice(i * 8000, (i + 1) * 8000)
-      , d = new ndn.Data(n, new ndn.SignedInfo(), chunk);
-    d.signedInfo.setFreshnessPeriod(this.freshnessPeriod);
+    //console.log("buffer", buffer)
+    for (var i = 0; i < length; i++){
+      var n = new ndn.Name(name);
+      n.appendSegment(i);
 
-    d.signedInfo.setFinalBlockID(new ndn.Name.Component(ndn.DataUtils.nonNegativeIntToBigEndian(length - 1)));
-    this.contentStore.insert(d.wireEncode().buffer, d);
-    if (i === 0){
-      firstData = d;
+      var chunk = buffer.slice(i * 8000, (i + 1) * 8000)
+        , d = new ndn.Data(n, new ndn.SignedInfo(), chunk);
+      d.signedInfo.setFreshnessPeriod(Self.freshnessPeriod);
+      if (length > 1){
+        d.signedInfo.setFinalBlockID(new ndn.Name.Component(ndn.DataUtils.nonNegativeIntToBigEndian(length - 1)));
+      } else {
+        d.signedInfo.setFinalBlockID(n.get(-1));
+      }
+      //console.log("inserting in contentStore", Self.contentStore, d)
+      Self.contentStore.insert(d.wireEncode().buffer, d);
+      //console.log()
+      if (i === 0){
+        firstData = d;
+      }
     }
-  }
-
-  return firstData;
+    callback(firstData);
+  });
 };
 
 /** stringify and call Pubisher.publishString
@@ -160,9 +175,15 @@ Publisher.prototype.publishString = function(){
   var length = chunks.length;
   for (var i = 0; i < length; i++){
     var n = new ndn.Name(this.name);
+    console.log("creating data packet", n.toUri(), i)
     var d = new ndn.Data(n.appendSegment(i), new ndn.SignedInfo(), chunks.shift());
+    console.log(d.name.toUri())
     d.signedInfo.setFreshnessPeriod(this.freshnessPeriod);
-    d.signedInfo.setFinalBlockID(new ndn.Name.Component(ndn.DataUtils.nonNegativeIntToBigEndian(length - 1)));
+    if (length === 0){
+      d.signedInfo.setFinalBlockID(n.get(-1))
+    } else{
+      d.signedInfo.setFinalBlockID(new ndn.Name.Component(ndn.DataUtils.nonNegativeIntToBigEndian(length - 1)));
+    }
     d.sign();
     this.contentStore.insert(d.wireEncode().buffer, d);
     if (i === 0){

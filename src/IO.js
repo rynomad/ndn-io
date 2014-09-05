@@ -14,8 +14,15 @@ Fetcher.installContrib(contrib);
  */
 function IO (transportClass, connectionParameters, contentStore){
   this.interfaces = new contrib.Interfaces(this);
-  this.interfaces.installTransport(transportClass);
-  this.interfaces.newFace(transportClass.prototype.name, connectionParameters);
+
+
+  var transports = Object.keys(contrib.Transports);
+
+  for (var i = 0; i < transports.length; i++){
+    this.interfaces.installTransport(contrib.Transports[transports[i]]);
+  }
+
+  this.interfaces.newFace(transportClass, connectionParameters);
   this.nameTree = (contentStore) ? contentStore.nameTree : new contrib.NameTree();
   this.PIT = new contrib.PIT(this.nameTree);
   this.FIB = new contrib.FIB(this.nameTree);
@@ -37,6 +44,7 @@ IO.installContrib = function(contrib){
   Fetcher.installContrib(contrib);
   ndn = contrib.ndn;
   this.ndn = contrib.ndn;
+  console.log("contrib installed")
 };
 
 IO.localTransport = require("ndn-lib/js/transport/unix-transport.js");
@@ -45,13 +53,13 @@ IO.localTransport = require("ndn-lib/js/transport/unix-transport.js");
  *@param {Buffer|Blob|File|FilePath|JSON|String} toPublish the thing you want to publish
  *@param {String|ndn.Name} name the name to publish the data under (excluding segment)
  */
-IO.prototype.publish = function(toPublish, name, freshnessMilliseconds){
+IO.prototype.publish = function(name, toPublish, announcer ){
   this.publisher = this.publisher || new Publisher(this);
 
   return this.publisher.setToPublish(toPublish)
              .setName(name)
-             .setFreshnessPeriod(freshnessMilliseconds)
-             .publish(this.announcer);
+             .setFreshnessPeriod( 60 * 60 * 1000)
+             .publish(announcer);
 };
 
 /** Fetch a Blob/Buffer, JSON object, or String
@@ -61,12 +69,16 @@ IO.prototype.publish = function(toPublish, name, freshnessMilliseconds){
  *@param {Function} timeout timeout callback
  *@returns {this} for chaining
  */
-IO.prototype.fetch = function(type, uri, callback){
+IO.prototype.fetch = function(uriString, callback){
   this.fetcher = this.fetcher || new Fetcher(this);
 
-  this.fetcher.setName(uri)
-              .setInterestLifetimeMilliseconds(2000)
-              .setType(type)
+  var parts = uriString.split("://")
+  //console.log("parts", parts)
+
+
+  this.fetcher.setName(parts[1])
+              .setInterestLifetimeMilliseconds(400)
+              .setType(parts[0])
               .get(callback);
 
   return this;
@@ -107,15 +119,18 @@ IO.prototype.addListener = function(prefix, connectionParameters){
 IO.prototype.handleInterest = function(element, faceID){
   var interest = new ndn.Interest();
   interest.wireDecode(element);
+  //console.log(this)
+  var Self = this;
   this.contentStore.check(interest, function(result){
+    //console.log("got result?", interest.name.toUri(), result)
     if (result){
-      this.interfaces.dispatch(result, faceID);
-    } else {
+      Self.interfaces.dispatch(result, 0 | (1 << faceID));
+    } /*else {
       var dispatchFlag = this.FIB.findAllNextHops(interest.name.toUri());
       if (dispatchFlag !== 0){
-        this.interfaces.dispatch(element, dispatchFlag);
+        Self.interfaces.dispatch(element, dispatchFlag);
       }
-    }
+    } */
   });
 };
 
@@ -139,12 +154,13 @@ IO.prototype.handleData = function(element, faceID){
  */
 IO.prototype.fetchAllSegments = function(firstSegmentInterest, onEachData, onTimeout){
   var interestsInFlight = 0
-    , windowSize = 4
+    , windowSize = 50
     , masterInterest = new ndn.Interest(firstSegmentInterest)
     , finalSegmentNumber
     , interest = new ndn.Interest(masterInterest)
-    , timeoutTriggered = false
+    , callbackTriggered = false
     , segmentRequested = []
+    , segmentGot = []
     , Self = this;
 
   masterInterest.name = firstSegmentInterest.name.getPrefix(-1);
@@ -154,22 +170,26 @@ IO.prototype.fetchAllSegments = function(firstSegmentInterest, onEachData, onTim
     if (!element){
       var interest = data;
       var seg = ndn.DataUtils.bigEndianToUnsignedInt(interest.name.get(-1).getValue().buf());
-      if (segmentRequested[seg] < 4) {
-        segmentRequested[seg]++;
-        var packet = interest.wireEncode().buffer;
-        Self.PIT.insertPitEntry(packet, interest, callback);
-        Self.interfaces.dispatch(packet, 1);
-      } else if ((timeoutTriggered === false)) {
-        timeoutTriggered = true;
-        onTimeout(new Error("fetching data failed due to timeout: ", firstSegmentInterest.toUri()));
+      if (!segmentGot[seg]){
+        if (segmentRequested[seg] < 6) {
+          segmentRequested[seg]++;
+          var packet = interest.wireEncode().buffer;
+          Self.PIT.insertPitEntry(packet, interest, callback);
+          Self.interfaces.dispatch(packet, 1);
+        } else if ((callbackTriggered === false)) {
+          callbackTriggered = true;
+          onTimeout(new Error("fetching data failed due to timeout: ", firstSegmentInterest.toUri()), null);
+        }
       }
     } else {
       //console.log("element returned", data.name.toUri(), finalBlockID)
+      finalBlockID = finalBlockID || firstSegmentInterest.name.get(-1);
       onEachData(element, data, finalBlockID);
 
       interestsInFlight--;
 
-      var segmentNumber =  ndn.DataUtils.bigEndianToUnsignedInt(data.name.get(-1).getValue().buf());
+      var segmentNumber =  ndn.DataUtils.bigEndianToUnsignedInt(data.name.get(-1).getValueAsBuffer());
+      segmentGot[segmentNumber] = true;
 
       finalSegmentNumber = 1 + ndn.DataUtils.bigEndianToUnsignedInt(finalBlockID);
       //console.log("finalSegmentNumber", finalSegmentNumber);

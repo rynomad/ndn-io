@@ -29,7 +29,7 @@ Fetcher.installContrib = function(ndncontrib){
 
 Fetcher.prototype.setName = function(uri){
   this.name = new ndn.Name(uri);
-  this.masterInterest.setName(this.name);
+  this.masterInterest.setName(this.name.appendSegment(0));
   return this;
 };
 
@@ -60,21 +60,22 @@ Fetcher.prototype.setExclude = function(excludeArray){
 };
 
 Fetcher.prototype.get = function(callback){
-  if (!this.type || ((this.type !== "object" || "json" || "string" ) && (this.type.indexOf("/") === -1))){
+  if (!this.type || (!(this.type === "object" || "json" || "string" ) && (this.type.indexOf("/") === -1))){
     callback(new TypeError("must call .setType with mimeString, 'object', 'json', 'string' || 'text'"));
   } else{
-    if (this.type.split("/").length === 2){
+    if ((this.type === "file")||(this.type.split("/").length === 2)){
       if (this.type.split(":").length === 2){
-        this.fetcher.getAsObjectURL(callback);
+        this.getAsObjectURL(callback);
       } else {
-        this.fetcher.getAsFile(callback);
+        this.getAsFile(callback);
       }
       return this;
-    } else if (type === "object" || "json"){
-      this.fetcher.getAsJSON(callback);
+    } else if ((this.type === "object") || (this.type === "json")){
+      console.log("!!!!!!!!!!!!!!!!!!!",this.type, (this.type === ("object" || "json")))
+      this.getAsJSON(callback);
       return this;
-    } else if (type === "string" || "text"){
-      this.fetcher.getAsString(callback);
+    } else if (this.type === "string" || "text"){
+      this.getAsString(callback);
       return this;
     }
   }
@@ -86,6 +87,7 @@ Fetcher.prototype.assembleString = function(contentArray){
   for (var i = 0; i < contentArray.length; i++){
     string += contentArray[i].toString();
   }
+  console.log("string assembled!!!!!!!!!!!!!!!!!!!!!!!!!!!!!", string)
   return string;
 };
 
@@ -99,7 +101,7 @@ Fetcher.prototype.getAsFile = function( callback, timeout){
   var Self = this
     , type = (this.type.indexOf("url:") === 0) ? this.type.substring(4) : this.type;
 
-  this.get(function(err, contentArray){
+  this.getParts(function(err, contentArray){
     if (err){
       callback(err);
     } else {
@@ -111,7 +113,7 @@ Fetcher.prototype.getAsFile = function( callback, timeout){
 
 Fetcher.prototype.getAsString = function( callback, timeout){
   var Self = this;
-  this.get(function(err, contentArray){
+  this.getParts(function(err, contentArray){
     if (err){
       callback(err);
     } else {
@@ -142,10 +144,11 @@ Fetcher.prototype.getAsObjectURL = (function(){
   }
 })();
 
-Fetcher.prototype.getAsJSON = function(mimeString, callback){
+Fetcher.prototype.getAsJSON = function(callback){
   var Self = this;
-  this.getParts(function(contentArray){
-    callback(Self.assembleJSON(contentArray, mimeString));
+  this.getParts(function(err, contentArray){
+    //console.log("what am I getting in .json getParts?", err, contentArray)
+    callback(err, Self.assembleJSON(contentArray));
   });
 };
 
@@ -166,7 +169,11 @@ Fetcher.prototype.getParts = function(uri, interestLifetimeMilliseconds, callbac
 
   function onEachData (element, data, finalBlockID){
     if (!totalSegments){
-      totalSegments = 1 + ndn.DataUtils.bigEndianToUnsignedInt(finalBlockID);
+      try{
+        totalSegments = 1 + ndn.DataUtils.bigEndianToUnsignedInt(finalBlockID);
+      } catch(e){
+        totalSegments = 1
+      }
     }
 
     var segmentNumber = ndn.DataUtils.bigEndianToUnsignedInt(data.name.get(-1).getValue().buf());
