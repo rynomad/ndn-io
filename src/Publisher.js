@@ -129,6 +129,7 @@ Publisher.prototype.publishFile = function(callback){
     for (var i = 0; i < length; i++){
       var n = new ndn.Name(name);
       n.appendSegment(i);
+      console.log(n.toUri())
 
       var chunk = buffer.slice(i * 8000, (i + 1) * 8000)
         , d = new ndn.Data(n, new ndn.SignedInfo(), chunk);

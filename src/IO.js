@@ -119,7 +119,7 @@ IO.prototype.addListener = function(prefix, connectionParameters){
 IO.prototype.handleInterest = function(element, faceID){
   var interest = new ndn.Interest();
   interest.wireDecode(element);
-  //console.log(this)
+  //console.log("IO module got interest",interest.name.toUri())
   var Self = this;
   this.contentStore.check(interest, function(result){
     //console.log("got result?", interest.name.toUri(), result)
