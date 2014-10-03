@@ -2,7 +2,7 @@ var IO = require("../index.js")
 var Interfaces = require("ndn-contrib").Interfaces
 
 
-module.exports = function(Transport, connectionInfo1, connectionInfo2, assert){
+module.exports = function(Transport, connectionInfo1, connectionInfo2, assert, T){
   IO1 = new IO(Transport, connectionInfo1)
   var ndn = IO1.ndn;
   var dat = []
@@ -39,7 +39,7 @@ module.exports = function(Transport, connectionInfo1, connectionInfo2, assert){
         })
       })
       it("should call onEachData once and only once", function(done){
-        this.timeout(1000000000)
+        this.timeout(10000)
         var count = 0
 
         var n = new ndn.Name("test/1/1")
@@ -63,11 +63,12 @@ module.exports = function(Transport, connectionInfo1, connectionInfo2, assert){
           }
         });
 
-        IO2.installTransport(Transport)
-        IO2.newFace(Transport.prototype.name, connectionInfo2, function(){
+        IO2.installTransport(T);
+        IO2.newFace(Transport, connectionInfo2, function(){
           global.IO2 = IO2;
           IO1.fetchAllSegments(inst, function(arg, inst){
             count++
+            console.log(count)
             assert(count <= 50, "count greater than 100")
             if (count == 50){
               done()

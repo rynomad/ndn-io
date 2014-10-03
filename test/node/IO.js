@@ -13,6 +13,7 @@ module.exports = function(assert){
     if (sockets.length > 1){
       ws.on("message", function(message){
         try{
+          console.log("got message on socket 2")
           sockets[0].send(message)
         } catch(e){
           console.log("error sending to socket1")
@@ -20,13 +21,13 @@ module.exports = function(assert){
       });
       sockets[0].on("message", function(message){
         try{
+          console.log("got message on socket 1")
           ws.send(message)
         }catch (e){
-          console.log("error sending to 1")
+          console.log("error sending to 2")
         }
       });
     } else {
-      ws.on
     }
   })
   var io = require("../IO.js")
@@ -34,6 +35,6 @@ module.exports = function(assert){
 
   var p1 = ws.createConnection("ws://localhost:7575")
   var p2 = ws.createConnection("ws://localhost:7575")
-  io(transportClass, p1, p2, assert)
+  io("WebSocketServerTransport", p1, p2, assert, transportClass)
 
 }

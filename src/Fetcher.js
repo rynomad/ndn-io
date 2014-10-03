@@ -1,5 +1,6 @@
-var ndn, contrib;
-
+var ndn
+  , contrib
+  , debug = require("debug")("Fetcher");
 /** Fetcher object
  *@constructore
  *@param {IO}  io the IO instance
@@ -28,33 +29,39 @@ Fetcher.installContrib = function(ndncontrib){
 };
 
 Fetcher.prototype.setName = function(uri){
+  debug("setting name to %s", uri);
   this.name = new ndn.Name(uri);
   this.masterInterest.setName(this.name.appendSegment(0));
   return this;
 };
 
 Fetcher.prototype.setType = function(type){
+  debug("setting type to %s", type);
   this.type = type;
   return this;
 };
 
 Fetcher.prototype.setInterestLifetimeMilliseconds = function(milliseconds){
+  debug("setting interestLifetimeMilliseconds to %s", milliseconds);
   this.masterInterest.setInterestLifetimeMilliseconds(milliseconds);
   return this;
 };
 
 Fetcher.prototype.setMinSuffixComponents = function(count){
+  debug("setting minSuffixComponents to %s (did you take the implicit digest into account?)", count);
   this.masterInterest.setMinSuffixComponents(count);
   return this;
 };
 
 
 Fetcher.prototype.setMaxSuffixComponents = function(count){
+  debug("setting maxSuffixComponents to %s (did you take the implicit digest into account?)", count);
   this.masterInterest.setMaxSuffixComponents(count);
   return this;
 };
 
 Fetcher.prototype.setExclude = function(excludeArray){
+  debug("setting exludes", excludeArray);
   this.masterInterest.setMaxSuffixComponents(count);
   return this;
 };
@@ -65,16 +72,19 @@ Fetcher.prototype.get = function(callback){
   } else{
     if ((this.type === "file")||(this.type.split("/").length === 2)){
       if (this.type.split(":").length === 2){
+        debug("get as Object url? %s", this.type);
         this.getAsObjectURL(callback);
       } else {
+        debug("get as File? %s", this.type);
         this.getAsFile(callback);
       }
       return this;
     } else if ((this.type === "object") || (this.type === "json")){
-      console.log("!!!!!!!!!!!!!!!!!!!",this.type, (this.type === ("object" || "json")))
+      debug("get as json? %s", this.type);
       this.getAsJSON(callback);
       return this;
     } else if (this.type === "string" || "text"){
+      debug("get as string? %s", this.type);
       this.getAsString(callback);
       return this;
     }
@@ -87,11 +97,12 @@ Fetcher.prototype.assembleString = function(contentArray){
   for (var i = 0; i < contentArray.length; i++){
     string += contentArray[i].toString();
   }
-  console.log("string assembled!!!!!!!!!!!!!!!!!!!!!!!!!!!!!", string)
+  debug("assembled string %s", string);
   return string;
 };
 
 Fetcher.prototype.assembleJSON = function(contentArray){
+  debug("assemble json");
   return JSON.parse(this.assembleString(contentArray));
 };
 
@@ -103,8 +114,10 @@ Fetcher.prototype.getAsFile = function( callback, timeout){
 
   this.getParts(function(err, contentArray){
     if (err){
+      debug("error getting parts for file: %s", err.toString());
       callback(err);
     } else {
+      debug("got parts for file");
       callback(null, Self.assembleFile(contentArray, type));
     }
   });
@@ -115,8 +128,10 @@ Fetcher.prototype.getAsString = function( callback, timeout){
   var Self = this;
   this.getParts(function(err, contentArray){
     if (err){
+      debug("error getting parts for string: %s", err.toString());
       callback(err);
     } else {
+      debug("got parts for string");
       callback(null, Self.assembleString(contentArray));
     }
   });
@@ -147,8 +162,13 @@ Fetcher.prototype.getAsObjectURL = (function(){
 Fetcher.prototype.getAsJSON = function(callback){
   var Self = this;
   this.getParts(function(err, contentArray){
-    //console.log("what am I getting in .json getParts?", err, contentArray)
-    callback(err, Self.assembleJSON(contentArray));
+    if(err){
+      debug("error getting parts for JSON: %s", err.toString());
+      callback(err);
+    } else{
+      debug("got parts for JSON: %s");
+      callback(null, Self.assembleJSON(contentArray));
+    }
   });
 };
 
@@ -163,6 +183,7 @@ Fetcher.prototype.getParts = function(uri, interestLifetimeMilliseconds, callbac
     this.setInterestLifetimeMilliseconds(interestLifetimeMilliseconds);
   }
 
+  debug("get parts for %s", this.name.toUri());
   var totalSegments = null;
   var segmentsRetrieved = 0;
   var contentArray = [];
@@ -172,7 +193,7 @@ Fetcher.prototype.getParts = function(uri, interestLifetimeMilliseconds, callbac
       try{
         totalSegments = 1 + ndn.DataUtils.bigEndianToUnsignedInt(finalBlockID);
       } catch(e){
-        totalSegments = 1
+        totalSegments = 1;
       }
     }
 
@@ -180,6 +201,7 @@ Fetcher.prototype.getParts = function(uri, interestLifetimeMilliseconds, callbac
     contentArray[segmentNumber] = data.content;
     segmentsRetrieved++;
     if (segmentsRetrieved === totalSegments){
+      debug("got all segments");
       callback(null, contentArray);
     }
 

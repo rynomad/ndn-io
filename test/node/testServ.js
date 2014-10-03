@@ -13,6 +13,6 @@ var server = net.createServer(function(c) { //'connection' listener
   c.write('hello\r\n');
   c.pipe(c);
 });
-server.listen("/var/tmp/IOT.sock", function(){
+server.listen("7575", function(){
   console.log('server bound', server);
 })

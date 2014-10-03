@@ -1,4 +1,6 @@
-var ndn, contrib;
+var ndn
+  , contrib
+  , debug = require("debug")("Publisher");
 
 if (!File){
   var File = function File(){}
@@ -14,6 +16,7 @@ if (!File){
  *@returns {Publisher}
  */
 function Publisher (io, name, toPublish, freshnessPeriod){
+  debug("constructor");
   this.contentStore = io.contentStore;
   this.toPublish = toPublish || null;
   this.name = (name) ? new ndn.Name(name) : null;
@@ -36,6 +39,7 @@ Publisher.installContrib = function(contrib){
  *@returns {this} for chaining
  */
 Publisher.prototype.setFreshnessPeriod = function(milliseconds){
+  debug("set freshness milliseconds to %s", milliseconds);
   this.freshnessPeriod = milliseconds;
   return this;
 };
@@ -48,7 +52,7 @@ Publisher.prototype.setToPublish = function(toPublish){
   var er;
 
   if (typeof toPublish !== "string") {
-    console.log("not a string", typeof toPublish, toPublish instanceof File, toPublish)
+    debug("toPublish not a string");
     if (!(toPublish instanceof File
           || (toPublish instanceof Blob)
           || (toPublish instanceof Buffer)
@@ -77,7 +81,7 @@ Publisher.prototype.setToPublish = function(toPublish){
  */
 Publisher.prototype.setName = function(name){
   this.name = new ndn.Name(name);
-  console.log("name set", this.name.toUri())
+  debug("set Name", this.name.toUri());
   return this;
 };
 
@@ -92,13 +96,10 @@ Publisher.prototype.publish = function(callback){
        || (Buffer.isBuffer(this.toPublish)))
       || ((typeof this.toPublish === "string")
           && (this.toPublish.indexOf("file://") === 0))){
-    console.log(".publishFile");
     this.publishFile(callback);
   } else if (typeof this.toPublish === "string"){
-    console.log("publishString")
     callback(this.publishString());
   } else if (typeof this.toPublish === "object"){
-    console.log("publishJSON")
     callback(this.publishJSON());
   }
   return this;
@@ -116,20 +117,18 @@ Publisher.prototype.readFile = require("./node/readFile.js");
  *@returns {Object} firstData the ndn.Data packet of the first content Object, signed and marked with final
  */
 Publisher.prototype.publishFile = function(callback){
-  //console.log("publishfile called", this.freshnessPeriod)
+  debug("publishfile called for %s", this.name.toUri());
   var Self = this;
-  var name = Self.name
+  var name = Self.name;
+
   this.readFile(this.toPublish, function(buffer){
+    debug("file read to buffer");
     var length = Math.ceil(buffer.length / 8000)
     , firstData;
 
-    //console.log(new ndn.Name.Component(ndn.DataUtils.nonNegativeIntToBigEndian(length - 1)))
-
-    //console.log("buffer", buffer)
     for (var i = 0; i < length; i++){
       var n = new ndn.Name(name);
       n.appendSegment(i);
-      console.log(n.toUri())
 
       var chunk = buffer.slice(i * 8000, (i + 1) * 8000)
         , d = new ndn.Data(n, new ndn.SignedInfo(), chunk);
@@ -139,9 +138,8 @@ Publisher.prototype.publishFile = function(callback){
       } else {
         d.signedInfo.setFinalBlockID(n.get(-1));
       }
-      //console.log("inserting in contentStore", Self.contentStore, d)
+      debug("inserting %s into contentStore", d.name.toUri());
       Self.contentStore.insert(d.wireEncode().buffer, d);
-      //console.log()
       if (i === 0){
         firstData = d;
       }
@@ -155,6 +153,7 @@ Publisher.prototype.publishFile = function(callback){
  *@returns {Object} firstData the ndn.Data packet of the first content Object, signed and marked with final
  */
 Publisher.prototype.publishJSON = function(){
+  debug("publishJSON %s", this.name.toUri());
   return this.setToPublish(JSON.stringify(this.toPublish))
              .publishString();
 
@@ -168,6 +167,7 @@ Publisher.prototype.publishString = function(){
   var chunks = []
     , firstData;
 
+  debug("publishString %", this.name.toUri());
   while (this.toPublish.length > 0){
     chunks.push(this.toPublish.substr(0,8000));
     this.toPublish = this.toPublish.substr(8000, this.toPublish.length);
@@ -176,16 +176,15 @@ Publisher.prototype.publishString = function(){
   var length = chunks.length;
   for (var i = 0; i < length; i++){
     var n = new ndn.Name(this.name);
-    console.log("creating data packet", n.toUri(), i)
     var d = new ndn.Data(n.appendSegment(i), new ndn.SignedInfo(), chunks.shift());
-    console.log(d.name.toUri())
     d.signedInfo.setFreshnessPeriod(this.freshnessPeriod);
     if (length === 0){
-      d.signedInfo.setFinalBlockID(n.get(-1))
+      d.signedInfo.setFinalBlockID(n.get(-1));
     } else{
       d.signedInfo.setFinalBlockID(new ndn.Name.Component(ndn.DataUtils.nonNegativeIntToBigEndian(length - 1)));
     }
     d.sign();
+    debug("inserting %s into contentStore", d.name.toUri());
     this.contentStore.insert(d.wireEncode().buffer, d);
     if (i === 0){
       firstData = d;

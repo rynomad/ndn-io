@@ -1,7 +1,8 @@
 var Publisher = require("./Publisher.js"),
     Fetcher = require("./Fetcher.js"),
     contrib = require("ndn-contrib"),
-    ndn = contrib.ndn;
+    ndn = contrib.ndn
+    , debug = require("debug")("IO");
 
 Publisher.installContrib(contrib);
 Fetcher.installContrib(contrib);
@@ -13,12 +14,17 @@ Fetcher.installContrib(contrib);
  *@return {io}
  */
 function IO (transportClass, connectionParameters, contentStore){
+  debug("constructor called");
+  debug("transportClass: %s", transportClass);
+  debug("connectionParameters: %s", connectionParameters);
+
   this.interfaces = new contrib.Interfaces(this);
 
 
   var transports = Object.keys(contrib.Transports);
 
   for (var i = 0; i < transports.length; i++){
+    debug("installing tranport %s from ndn-js-contrib", transports[i]);
     this.interfaces.installTransport(contrib.Transports[transports[i]]);
   }
 
@@ -44,7 +50,7 @@ IO.installContrib = function(contrib){
   Fetcher.installContrib(contrib);
   ndn = contrib.ndn;
   this.ndn = contrib.ndn;
-  console.log("contrib installed")
+  console.log("contrib installed");
 };
 
 IO.localTransport = require("ndn-lib/js/transport/unix-transport.js");
@@ -54,6 +60,8 @@ IO.localTransport = require("ndn-lib/js/transport/unix-transport.js");
  *@param {String|ndn.Name} name the name to publish the data under (excluding segment)
  */
 IO.prototype.publish = function(name, toPublish, announcer ){
+  debug("called publish convenience method... aren't you daring!");
+
   this.publisher = this.publisher || new Publisher(this);
 
   return this.publisher.setToPublish(toPublish)
@@ -70,9 +78,11 @@ IO.prototype.publish = function(name, toPublish, announcer ){
  *@returns {this} for chaining
  */
 IO.prototype.fetch = function(uriString, callback){
+  debug("called fetch convenience method... aren't you daring!");
+
   this.fetcher = this.fetcher || new Fetcher(this);
 
-  var parts = uriString.split("://")
+  var parts = uriString.split("://");
   //console.log("parts", parts)
 
 
@@ -119,10 +129,13 @@ IO.prototype.addListener = function(prefix, connectionParameters){
 IO.prototype.handleInterest = function(element, faceID){
   var interest = new ndn.Interest();
   interest.wireDecode(element);
-  //console.log("IO module got interest",interest.name.toUri())
+
+  debug("got interest %s", interest.toUri());
+
   var Self = this;
   this.contentStore.check(interest, function(result){
-    //console.log("got result?", interest.name.toUri(), result)
+    debug("contentStore found match for $%s", interest.name.toUri());
+
     if (result){
       Self.interfaces.dispatch(result, 0 | (1 << faceID));
     } /*else {
@@ -141,8 +154,11 @@ IO.prototype.handleInterest = function(element, faceID){
 IO.prototype.handleData = function(element, faceID){
   var data = new ndn.Data();
   data.wireDecode(element);
+
+  debug("got data %s", data.name.toUri());
   var results = this.PIT.lookup(data);
   for (var i = 0; i < results.pitEntries.length; i++){
+    debug("data matches pitEntry %s", results.pitEntries[i].uri);
     results.pitEntries[i].callback(element, data, data.signedInfo.finalBlockID);
   }
 };
@@ -165,24 +181,27 @@ IO.prototype.fetchAllSegments = function(firstSegmentInterest, onEachData, onTim
 
   masterInterest.name = firstSegmentInterest.name.getPrefix(-1);
 
+  debug("fetching all segments for data named %s", masterInterest.name.toUri());
+
   var callback = function(element, data, finalBlockID) {
-    //console.log("callback")
     if (!element){
       var interest = data;
       var seg = ndn.DataUtils.bigEndianToUnsignedInt(interest.name.get(-1).getValue().buf());
       if (!segmentGot[seg]){
+        debug("insterest timeout for segment %s of %s", seg, masterInterest.name.toUri());
         if (segmentRequested[seg] < 6) {
+          debug("re-expressing");
           segmentRequested[seg]++;
           var packet = interest.wireEncode().buffer;
           Self.PIT.insertPitEntry(packet, interest, callback);
           Self.interfaces.dispatch(packet, 1);
         } else if ((callbackTriggered === false)) {
           callbackTriggered = true;
+          debug("triggering onTimeout and aborting");
           onTimeout(new Error("fetching data failed due to timeout: ", firstSegmentInterest.toUri()), null);
         }
       }
     } else {
-      //console.log("element returned", data.name.toUri(), finalBlockID)
       finalBlockID = finalBlockID || firstSegmentInterest.name.get(-1);
       onEachData(element, data, finalBlockID);
 
@@ -192,7 +211,7 @@ IO.prototype.fetchAllSegments = function(firstSegmentInterest, onEachData, onTim
       segmentGot[segmentNumber] = true;
 
       finalSegmentNumber = 1 + ndn.DataUtils.bigEndianToUnsignedInt(finalBlockID);
-      //console.log("finalSegmentNumber", finalSegmentNumber);
+      debug("got segment %s of %s for %s", segmentNumber+1, finalSegmentNumber, masterInterest.name.toUri());
 
       if (interestsInFlight < windowSize) {
         var p;
@@ -202,11 +221,11 @@ IO.prototype.fetchAllSegments = function(firstSegmentInterest, onEachData, onTim
             var newInterest = new ndn.Interest(masterInterest);
 
             newInterest.name.appendSegment(i);
-            //console.log("times",masterInterest.interestLifetime, newInterest.interestLifetime)
             newInterest.setInterestLifetimeMilliseconds(masterInterest.getInterestLifetimeMilliseconds());
             p = newInterest.wireEncode();
             segmentRequested[i] = 0;
             Self.PIT.insertPitEntry(p, newInterest, callback);
+            debug("expressing interest for segment %s of %s for %s", i+1, finalSegmentNumber, masterInterest.name.toUri());
             Self.interfaces.dispatch(p, 1);
 
 

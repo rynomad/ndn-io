@@ -5,6 +5,5 @@ var  transportClass = require("ndn-contrib/src/Transports/browser/MessageChannel
 var io = require("../IO.js")
 var ms = new MessageChannel()
 module.exports = function(assert){
-  io(transportClass, ms.port1, ms.port2, assert);
+  io("MessageChannelTransport", ms.port1, ms.port2, assert, transportClass);
 }
-
